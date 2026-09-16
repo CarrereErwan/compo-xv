@@ -1735,7 +1735,7 @@ Sacha Petit"></textarea>
         toast(`${parsed.length} joueur${parsed.length>1?'s':''} ajouté${parsed.length>1?'s':''}`);
       }catch(err){
         console.error(err);
-        toast('Erreur pendant l’import');
+        toast('Erreur : ' + (err && (err.message || err.details || JSON.stringify(err))));
         btn.disabled = false; btn.textContent = 'Importer';
       }
     });
