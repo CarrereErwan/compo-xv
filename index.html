@@ -430,6 +430,14 @@ const FROM_ROW = { players:rowToPlayer, templates:rowToTemplate, posts:rowToPost
 /* ---------- data layer: Supabase first, IndexedDB cache fallback + offline outbox ---------- */
 async function ensureGroup(){
   if (currentGroup) return currentGroup;
+  if (sb && navigator.onLine){
+    try{
+      const { data, error } = await sb.auth.refreshSession();
+      if (!error && data && data.session){
+        currentUser = data.session.user;
+      }
+    }catch(err){ console.error('session refresh failed', err); }
+  }
   if (currentUser && navigator.onLine){
     try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
   }
@@ -2746,8 +2754,10 @@ async function importAllData(file){
 
 /* ---------- settings sheet ---------- */
 async function openSettingsSheet(){
-  if (!currentGroup && currentUser){
-    try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
+  if (!currentGroup){
+    showBusy('Vérification de la connexion…');
+    await ensureGroup();
+    hideBusy();
   }
   if (!currentGroup){
     if (!currentUser){
@@ -3058,6 +3068,11 @@ async function init(){
 
   window.addEventListener('online', ()=>{ updateOnlineStatus(); replayOutbox(); });
   window.addEventListener('offline', updateOnlineStatus);
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.visibilityState==='visible' && !els.app.hidden){
+      ensureGroup().then(()=> replayOutbox());
+    }
+  });
   updateOnlineStatus();
 
   window.addEventListener('beforeinstallprompt', (e)=>{
