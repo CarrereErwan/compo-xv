@@ -2811,6 +2811,7 @@ async function openSettingsSheet(){
         <div class="sheet-actions" style="flex-direction:column;">
           <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter une sauvegarde</button>
           <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer une sauvegarde</button>
+          <button type="button" class="btn btn-ghost btn-block" id="stDiag">Diagnostic technique</button>
           <button type="button" class="btn btn-ghost btn-block" id="stSignOut">Se déconnecter</button>
         </div>
         <input type="file" accept="application/json" id="stImportFile" hidden>
@@ -2819,6 +2820,7 @@ async function openSettingsSheet(){
           <button type="button" class="btn btn-ghost btn-block" id="stClose">Fermer</button>
         </div>
       `;
+      body.querySelector('#stDiag').addEventListener('click', openDiagnosticSheet);
       body.querySelector('#stClub').addEventListener('change', (e)=> saveClub(e.target.value.trim()));
       body.querySelector('#stCopyCode')?.addEventListener('click', async ()=>{
         try{ await navigator.clipboard.writeText(currentGroup.invite_code); toast('Code copié'); }
@@ -2866,6 +2868,71 @@ async function openSettingsSheet(){
       body.querySelector('#stClose').addEventListener('click', closeSheet);
     }
     draw();
+  });
+}
+
+async function openDiagnosticSheet(){
+  let sessionInfo = 'inconnue';
+  let sessionExpiresIn = 'inconnue';
+  try{
+    const { data } = await sb.auth.getSession();
+    if (data && data.session){
+      sessionInfo = 'active';
+      const expiresAt = data.session.expires_at;
+      if (expiresAt){
+        const mins = Math.round((expiresAt*1000 - Date.now())/60000);
+        sessionExpiresIn = mins>0 ? `expire dans ${mins} min` : `expirée depuis ${-mins} min`;
+      }
+    } else {
+      sessionInfo = 'aucune session';
+    }
+  }catch(err){ sessionInfo = 'erreur: '+(err.message||err); }
+
+  let counts = { players:'?', templates:'?', posts:'?' };
+  try{
+    counts.players = (await cacheGetAll('players')).length;
+    counts.templates = (await cacheGetAll('templates')).length;
+    counts.posts = (await cacheGetAll('posts')).length;
+  }catch(err){ console.error(err); }
+  let outboxCount = '?';
+  try{ outboxCount = (await cacheGetAll('outbox')).length; }catch(err){}
+
+  const lines = [
+    `sb initialisé : ${sb ? 'oui' : 'NON'}`,
+    `navigator.onLine : ${navigator.onLine}`,
+    `sessionValid (app) : ${sessionValid}`,
+    `Session Supabase : ${sessionInfo} (${sessionExpiresIn})`,
+    `currentUser : ${currentUser ? currentUser.email : 'NULL'}`,
+    `currentGroup : ${currentGroup ? currentGroup.name+' ('+currentGroup.id+', role='+currentGroup.role+')' : 'NULL'}`,
+    `state.players (chargés) : ${state.players.length}`,
+    `state.templates (chargés) : ${state.templates.length}`,
+    `state.compos (chargées) : ${state.compos.length}`,
+    `Cache local — joueurs : ${counts.players}, templates : ${counts.templates}, compos : ${counts.posts}`,
+    `File d’attente hors-ligne (outbox) : ${outboxCount}`,
+    `URL Supabase : ${SUPABASE_URL}`,
+  ];
+
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Diagnostic technique</h3>
+      <p class="sheet-msg" style="margin-top:0;">Fais une capture de cet écran si un problème persiste.</p>
+      <textarea readonly rows="14" style="font-family:monospace;font-size:.72rem;width:100%;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:.6em .7em;">${escapeHTML(lines.join('\n'))}</textarea>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-secondary btn-block" id="diagRetry">Forcer une reconnexion</button>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost btn-block" id="diagClose">Fermer</button>
+      </div>
+    `;
+    body.querySelector('#diagRetry').addEventListener('click', async ()=>{
+      showBusy('Reconnexion…');
+      currentGroup = null;
+      await ensureGroup();
+      hideBusy();
+      closeSheet();
+      openDiagnosticSheet();
+    });
+    body.querySelector('#diagClose').addEventListener('click', closeSheet);
   });
 }
 
