@@ -1488,7 +1488,10 @@ function renderEffectifView(){
   root.innerHTML = `
     <div class="view-toolbar">
       <h2>Effectif</h2>
-      <button class="btn btn-accent" id="btnAddPlayer">+ Joueur</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btnImportPlayers">Importer une liste</button>
+        <button class="btn btn-accent" id="btnAddPlayer">+ Joueur</button>
+      </div>
     </div>
     ${state.players.length===0 ? '' : `
     <div class="list-controls">
@@ -1501,6 +1504,7 @@ function renderEffectifView(){
     <div id="efListWrap"></div>
   `;
   root.querySelector('#btnAddPlayer')?.addEventListener('click', ()=> openPlayerForm());
+  root.querySelector('#btnImportPlayers')?.addEventListener('click', ()=> openImportPlayersSheet());
   const search = root.querySelector('#efSearch');
   search?.addEventListener('input', ()=>{
     state.effectif.query = search.value;
@@ -1667,6 +1671,74 @@ function openPlayerForm(player){
       });
     }
     draw();
+  });
+}
+
+function parsePlayerLine(line){
+  line = line.trim();
+  if (!line) return null;
+  let rest = line, positionText = null;
+  const sepMatch = rest.match(/^(.*?)\s*[,;|]\s*(.+)$/) || rest.match(/^(.*?)\s+-\s+(.+)$/);
+  if (sepMatch){ rest = sepMatch[1].trim(); positionText = sepMatch[2].trim(); }
+  let number = null;
+  const numMatch = rest.match(/^(\d{1,2})[\.\)\s]+(.*)$/);
+  if (numMatch){ number = Number(numMatch[1]); rest = numMatch[2].trim(); }
+  const name = rest.trim();
+  if (!name) return null;
+  let position = null;
+  if (positionText){
+    const found = POSITIONS.find(p=> p.toLowerCase()===positionText.toLowerCase());
+    position = found || null;
+  }
+  return { name, number, position };
+}
+function openImportPlayersSheet(){
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Importer une liste de joueurs</h3>
+      <p class="sheet-msg" style="margin-top:0;">Un joueur par ligne. Formats acceptés :</p>
+      <p class="sheet-msg" style="margin-top:-10px;font-family:var(--font-display);">9 Jules Martin, Demi de mêlée<br>Jules Martin<br>12. Paul Durand - Centre</p>
+      <label class="field"><span>Liste</span>
+        <textarea id="importText" rows="10" placeholder="9 Jules Martin, Demi de mêlée
+10 Paul Durand, Ouverture
+Sacha Petit"></textarea>
+      </label>
+      <p class="sheet-msg" id="importPreview"></p>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="importCancel">Annuler</button>
+        <button type="button" class="btn btn-accent" id="importSubmit">Importer</button>
+      </div>
+    `;
+    const textarea = body.querySelector('#importText');
+    const preview = body.querySelector('#importPreview');
+    function updatePreview(){
+      const lines = textarea.value.split('\n').map(parsePlayerLine).filter(Boolean);
+      preview.textContent = lines.length ? `${lines.length} joueur${lines.length>1?'s':''} détecté${lines.length>1?'s':''}.` : '';
+    }
+    textarea.addEventListener('input', updatePreview);
+    body.querySelector('#importCancel').addEventListener('click', closeSheet);
+    body.querySelector('#importSubmit').addEventListener('click', async ()=>{
+      const parsed = textarea.value.split('\n').map(parsePlayerLine).filter(Boolean);
+      if (parsed.length===0){ toast('Aucun joueur détecté'); return; }
+      const btn = body.querySelector('#importSubmit');
+      btn.disabled = true; btn.textContent = 'Import…';
+      try{
+        for (const p of parsed){
+          await idbPut('players', {
+            id: newId(), name: p.name, number: p.number, position: p.position,
+            photoAssetId: null, photos: [], createdAt: new Date().toISOString(),
+          });
+        }
+        await refreshPlayers();
+        closeSheet();
+        renderEffectifView();
+        toast(`${parsed.length} joueur${parsed.length>1?'s':''} ajouté${parsed.length>1?'s':''}`);
+      }catch(err){
+        console.error(err);
+        toast('Erreur pendant l’import');
+        btn.disabled = false; btn.textContent = 'Importer';
+      }
+    });
   });
 }
 
