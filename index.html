@@ -97,6 +97,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .player-pos{color:var(--text-muted);font-size:.78rem;}
 .player-number{font-family:var(--font-display);font-weight:700;font-size:1.15rem;color:var(--accent);font-variant-numeric:tabular-nums;min-width:1.6em;text-align:right;}
 
+.compo-checkbox{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:.75rem;font-weight:700;color:var(--accent-contrast);}
+.compo-checkbox.is-checked{background:var(--accent);border-color:var(--accent);}
 .compo-thumb{width:48px;height:48px;border-radius:12px;overflow:hidden;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:1.2rem;}
 .compo-thumb img{width:100%;height:100%;object-fit:cover;}
 .compo-info{flex:1;min-width:0;}
@@ -123,6 +125,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .empty-state h3{color:var(--text);font-size:1.1rem;}
 .empty-state p{max-width:32ch;font-size:.9rem;line-height:1.4;}
 .hint-banner{margin:0 16px 12px;padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-sm);color:var(--text-muted);font-size:.85rem;}
+.member-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.member-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:10px;font-size:.85rem;}
+.member-email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.carousel-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;}
+.carousel-strip img{height:180px;width:auto;border-radius:10px;border:1px solid var(--border);flex:0 0 auto;}
 
 .editor-toolbar{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;}
 .editor-title-input{flex:1;min-width:0;border:none;background:none;font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--text);padding:6px 4px;border-bottom:1px solid transparent;}
@@ -208,6 +215,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 .auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:60;overflow-y:auto;}
 .auth-card{width:100%;max-width:360px;}
+.preview-overlay{position:fixed;inset:0;background:#0a0f0a;z-index:70;display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));}
+.preview-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:16px;background:rgba(255,255,255,.12);border-color:transparent;color:#fff;z-index:2;}
+.preview-image-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding-top:44px;}
+.preview-image-wrap img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.preview-actions{display:flex;flex-direction:column;gap:10px;padding-top:16px;flex:0 0 auto;}
 .format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .format-card{border:2px solid var(--border);background:var(--surface-2);border-radius:12px;padding:10px;text-align:center;color:var(--text-muted);font-size:.8rem;font-weight:600;}
 .format-card.is-selected{border-color:var(--accent);color:var(--accent);}
@@ -291,6 +303,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   <div id="sheet" class="sheet" role="dialog">
     <div class="sheet-handle"></div>
     <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div id="previewOverlay" class="preview-overlay" hidden>
+  <button type="button" class="btn-icon preview-close" id="previewClose">✕</button>
+  <div class="preview-image-wrap"><img id="previewImg" alt=""></div>
+  <div class="preview-actions">
+    <button type="button" class="btn btn-accent btn-block" id="previewShare" hidden>Partager… (Instagram, etc.)</button>
+    <button type="button" class="btn btn-secondary btn-block" id="previewSave">Enregistrer sur le téléphone</button>
   </div>
 </div>
 
@@ -564,7 +585,7 @@ const state = {
   players: [],
   compos: [],
   design: { subview:'list', templateId:null, template:null, selectedSlotId:null, addMode:false, snapEnabled:true },
-  compo: { subview:'list', compoId:null, compo:null, template:null, adjustMode:false },
+  compo: { subview:'list', compoId:null, compo:null, template:null, adjustMode:false, selectMode:false, selectedIds:new Set() },
   effectif: { sort:'number', query:'' },
   settings: { club:'' },
 };
@@ -1661,14 +1682,23 @@ async function renderCompoView(){
     const tpl = state.templates.find(t=>t.id===c.templateId);
     return tpl ? tpl.bgAssetId : null;
   }));
+  const selectMode = state.compo.selectMode;
   root.innerHTML = `
     <div class="view-toolbar">
       <h2>Compositions</h2>
-      <button class="btn btn-accent" id="btnNewCompo">+ Nouvelle</button>
+      <div style="display:flex;gap:8px;">
+        ${list.length>0? `<button class="btn btn-secondary" id="btnSelectMode">${selectMode?'Annuler':'Sélectionner'}</button>`:''}
+        <button class="btn btn-accent" id="btnNewCompo">+ Nouvelle</button>
+      </div>
     </div>
     ${state.templates.length===0? `<p class="hint-banner">Crée d’abord un template dans l’onglet Design.</p>` : ''}
+    ${selectMode? `<p class="hint-banner">Coche 2 publications ou plus (ex: score + homme du match) pour les exporter ensemble en carrousel Instagram.</p>` : ''}
     ${list.length===0 ? emptyState('🏉','Aucune composition','Choisis un template et assigne tes joueurs pour créer ta première publication.','Nouvelle composition','btnEmptyNewCompo', state.templates.length===0) : `
-    <ul class="compo-list">${list.map(compoRowHTML).join('')}</ul>`}
+    <ul class="compo-list">${list.map(c=>compoRowHTML(c, selectMode, state.compo.selectedIds.has(c.id))).join('')}</ul>`}
+    ${selectMode && state.compo.selectedIds.size>0? `
+    <div class="editor-bottom-actions">
+      <button class="btn btn-accent btn-block" id="btnExportCarousel">Exporter en carrousel (${state.compo.selectedIds.size})</button>
+    </div>` : ''}
   `;
   const openNewCompoFlow = ()=>{
     if (state.templates.length===0){ toast('Crée un template d’abord'); return; }
@@ -1676,9 +1706,26 @@ async function renderCompoView(){
   };
   root.querySelector('#btnNewCompo')?.addEventListener('click', openNewCompoFlow);
   root.querySelector('#btnEmptyNewCompo')?.addEventListener('click', openNewCompoFlow);
-  root.querySelectorAll('[data-open-compo]').forEach(row=>{
-    row.addEventListener('click', ()=> openCompoEditor(row.dataset.openCompo));
+  root.querySelector('#btnSelectMode')?.addEventListener('click', ()=>{
+    state.compo.selectMode = !state.compo.selectMode;
+    state.compo.selectedIds = new Set();
+    renderCompoView();
   });
+  root.querySelector('#btnExportCarousel')?.addEventListener('click', ()=> exportCarousel([...state.compo.selectedIds]));
+  if (selectMode){
+    root.querySelectorAll('[data-select-compo]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const id = row.dataset.selectCompo;
+        if (state.compo.selectedIds.has(id)) state.compo.selectedIds.delete(id);
+        else state.compo.selectedIds.add(id);
+        renderCompoView();
+      });
+    });
+  } else {
+    root.querySelectorAll('[data-open-compo]').forEach(row=>{
+      row.addEventListener('click', ()=> openCompoEditor(row.dataset.openCompo));
+    });
+  }
   root.querySelectorAll('[data-dup-compo]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{ e.stopPropagation(); duplicateCompo(btn.dataset.dupCompo); });
   });
@@ -1696,19 +1743,21 @@ async function renderCompoView(){
     });
   });
 }
-function compoRowHTML(c){
+function compoRowHTML(c, selectMode, isSelected){
   const tpl = state.templates.find(t=>t.id===c.templateId);
   const filled = Object.values(c.assignments||{}).filter(Boolean).length;
   const total = tpl ? (tpl.slots||[]).length : 0;
   return `
-  <li class="compo-row" data-open-compo="${c.id}">
+  <li class="compo-row" ${selectMode? `data-select-compo="${c.id}"` : `data-open-compo="${c.id}"`}>
+    ${selectMode? `<span class="compo-checkbox ${isSelected?'is-checked':''}">${isSelected?'✓':''}</span>` : ''}
     <div class="compo-thumb">${tpl && tpl.bgAssetId? `<img src="${escapeAttr(photoUrl(tpl.bgAssetId))}" alt="">` : '🏉'}</div>
     <div class="compo-info">
       <div class="compo-name">${escapeHTML(c.name||'Sans nom')}${c.opponent? ' vs '+escapeHTML(c.opponent):''}</div>
       <div class="compo-meta">${filled}/${total} joueurs${tpl? '':' · template supprimé'}</div>
     </div>
+    ${selectMode? '' : `
     <button type="button" class="btn-icon" data-dup-compo="${c.id}" title="Dupliquer">⧉</button>
-    <button type="button" class="btn-icon" data-del-compo="${c.id}" title="Supprimer">🗑</button>
+    <button type="button" class="btn-icon" data-del-compo="${c.id}" title="Supprimer">🗑</button>`}
   </li>`;
 }
 async function duplicateCompo(id){
@@ -2327,7 +2376,7 @@ async function exportCompo(){
   try{
     const blob = await renderCompoCanvasBlob(tpl, c);
     hideBusy();
-    openExportReadySheet(blob, c);
+    openExportPreview(blob, c, openCaptionSheet);
   }catch(err){
     console.error(err);
     toast('Échec de la génération');
@@ -2335,38 +2384,113 @@ async function exportCompo(){
   }
 }
 
-function openExportReadySheet(blob, compo){
+async function exportCarousel(ids){
+  if (ids.length===0) return;
+  showBusy(`Génération 0/${ids.length}…`);
+  try{
+    const items = [];
+    for (let i=0;i<ids.length;i++){
+      const post = state.compos.find(p=>p.id===ids[i]);
+      const tpl = post ? state.templates.find(t=>t.id===post.templateId) : null;
+      if (!post || !tpl) continue;
+      showBusy(`Génération ${i+1}/${ids.length}…`);
+      const blob = await renderCompoCanvasBlob(tpl, post);
+      items.push({ post, blob });
+    }
+    hideBusy();
+    if (items.length===0){ toast('Rien à exporter'); return; }
+    openCarouselReadySheet(items);
+  }catch(err){
+    console.error(err);
+    toast('Échec de la génération du carrousel');
+    hideBusy();
+  }
+}
+function openCarouselReadySheet(items){
   let canShareFiles = false;
   try{
-    canShareFiles = !!(navigator.canShare && navigator.canShare({files:[new File([blob],'compo.png',{type:'image/png'})]}));
+    const files = items.map((it,i)=> new File([it.blob], `compo-${i+1}.png`, {type:'image/png'}));
+    canShareFiles = !!(navigator.canShare && navigator.canShare({files}));
   }catch(err){ canShareFiles = false; }
 
   openSheet((body)=>{
     body.innerHTML = `
-      <h3 class="sheet-title">Image prête</h3>
-      <p class="sheet-msg">Enregistre-la sur ton téléphone, puis publie-la sur Instagram — ou partage-la directement si ton appareil le permet.</p>
+      <h3 class="sheet-title">Carrousel prêt (${items.length} images)</h3>
+      <div class="carousel-strip">
+        ${items.map(it=> `<img src="${URL.createObjectURL(it.blob)}" alt="">`).join('')}
+      </div>
+      <p class="sheet-msg">${canShareFiles? 'Partage-les en une fois vers Instagram (elles formeront un carrousel), ou enregistre-les une par une.' : 'Ton navigateur ne permet pas de partager plusieurs images en une fois ici : enregistre-les une par une puis crée le carrousel depuis Instagram.'}</p>
       <div class="sheet-actions" style="flex-direction:column;">
-        ${canShareFiles? `<button type="button" class="btn btn-accent btn-block" id="btnShareImg">Partager… (Instagram, etc.)</button>`:''}
-        <button type="button" class="btn ${canShareFiles?'btn-secondary':'btn-accent'} btn-block" id="btnSaveImg">Enregistrer sur le téléphone</button>
+        ${canShareFiles? `<button type="button" class="btn btn-accent btn-block" id="btnShareCarousel">Partager les ${items.length} images…</button>`:''}
+        <button type="button" class="btn btn-secondary btn-block" id="btnSaveCarousel">Enregistrer les ${items.length} images</button>
       </div>
     `;
-    body.querySelector('#btnShareImg')?.addEventListener('click', async ()=>{
+    body.querySelector('#btnShareCarousel')?.addEventListener('click', async ()=>{
       try{
-        const file = new File([blob], sanitizeFilename(compo.name)+'.png', {type:'image/png'});
-        await navigator.share({ files:[file], title: compo.name||'Compo' });
+        const files = items.map((it,i)=> new File([it.blob], sanitizeFilename(it.post.name)+`-${i+1}.png`, {type:'image/png'}));
+        await navigator.share({ files, title: 'Compo XV' });
         closeSheet();
-        openCaptionSheet();
+        state.compo.selectMode = false;
+        state.compo.selectedIds = new Set();
+        renderCompoView();
       }catch(err){
         if (err && err.name==='AbortError') return;
         toast('Partage impossible, essaie l’enregistrement');
       }
     });
-    body.querySelector('#btnSaveImg').addEventListener('click', ()=>{
-      downloadBlob(blob, sanitizeFilename(compo.name)+'.png');
-      toast('Image enregistrée');
+    body.querySelector('#btnSaveCarousel').addEventListener('click', async ()=>{
+      for (let i=0;i<items.length;i++){
+        downloadBlob(items[i].blob, sanitizeFilename(items[i].post.name)+`-${i+1}.png`);
+        await new Promise(res=> setTimeout(res, 350));
+      }
+      toast('Images enregistrées');
       closeSheet();
-      openCaptionSheet();
+      state.compo.selectMode = false;
+      state.compo.selectedIds = new Set();
+      renderCompoView();
     });
+  });
+}
+function openExportPreview(blob, compo, onDone){
+  let canShareFiles = false;
+  try{
+    canShareFiles = !!(navigator.canShare && navigator.canShare({files:[new File([blob],'compo.png',{type:'image/png'})]}));
+  }catch(err){ canShareFiles = false; }
+
+  const overlay = document.getElementById('previewOverlay');
+  const img = document.getElementById('previewImg');
+  const shareBtn = document.getElementById('previewShare');
+  const saveBtn = document.getElementById('previewSave');
+  const closeBtn = document.getElementById('previewClose');
+  const url = URL.createObjectURL(blob);
+  img.src = url;
+  shareBtn.hidden = !canShareFiles;
+  overlay.hidden = false;
+
+  function cleanup(){
+    overlay.hidden = true;
+    URL.revokeObjectURL(url);
+    shareBtn.replaceWith(shareBtn.cloneNode(true));
+    saveBtn.replaceWith(saveBtn.cloneNode(true));
+    closeBtn.replaceWith(closeBtn.cloneNode(true));
+  }
+  document.getElementById('previewClose').addEventListener('click', ()=> cleanup());
+  document.getElementById('previewShare').addEventListener('click', async ()=>{
+    try{
+      const file = new File([blob], sanitizeFilename(compo.name)+'.png', {type:'image/png'});
+      await navigator.share({ files:[file], title: compo.name||'Compo' });
+      cleanup();
+      onDone && onDone();
+    }catch(err){
+      if (err && err.name==='AbortError') return;
+      toast('Partage impossible, essaie l’enregistrement');
+    }
+  });
+  document.getElementById('previewSave').addEventListener('click', ()=>{
+    downloadBlob(blob, sanitizeFilename(compo.name)+'.png');
+    toast('Image enregistrée');
+    cleanup();
+    onDone && onDone();
   });
 }
 
@@ -2480,59 +2604,96 @@ async function importAllData(file){
 async function openSettingsSheet(){
   let members = [];
   try{
-    const { data } = await sb.from('group_members').select('user_id, role').eq('group_id', currentGroup.id);
+    const { data, error } = await sb.rpc('get_group_members', { gid: currentGroup.id });
+    if (error) throw error;
     members = data || [];
-  }catch(err){ console.error(err); }
+  }catch(err){
+    console.error(err);
+    try{
+      const { data } = await sb.from('group_members').select('user_id, role').eq('group_id', currentGroup.id);
+      members = (data||[]).map(m=>({...m, email:null}));
+    }catch(e2){ console.error(e2); }
+  }
   openSheet((body)=>{
-    const isAdmin = currentGroup.role === 'admin';
-    body.innerHTML = `
-      <h3 class="sheet-title">Réglages</h3>
-      <label class="field"><span>Nom du club (affiché dans les légendes)</span>
-        <input type="text" id="stClub" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
-      </label>
-      <div class="hint-banner" style="margin:0 0 16px;">
-        <strong>Groupe : ${escapeHTML(currentGroup.name)}</strong> (${members.length} membre${members.length>1?'s':''})
-        ${isAdmin? `<div style="margin-top:8px;">Code d’invitation à partager : <code style="font-family:var(--font-display);font-weight:700;">${escapeHTML(currentGroup.invite_code)}</code> <button type="button" class="btn btn-secondary" id="stCopyCode" style="padding:.3em .8em;font-size:.78rem;">Copier</button></div>` : ''}
-      </div>
-      ${deferredInstallPrompt? `<button type="button" class="btn btn-accent btn-block" id="stInstall" style="margin-bottom:14px;">Installer l’application</button>` : ''}
-      <p class="sheet-msg" style="margin-top:0;">Effectif, templates et compositions sont synchronisés automatiquement avec les autres membres du groupe, et restent consultables hors-ligne (cache local sur cet appareil).</p>
-      <div class="sheet-actions" style="flex-direction:column;">
-        <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter une sauvegarde</button>
-        <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer une sauvegarde</button>
-        <button type="button" class="btn btn-ghost btn-block" id="stSignOut">Se déconnecter</button>
-      </div>
-      <input type="file" accept="application/json" id="stImportFile" hidden>
-      <p class="sheet-msg">L’export sert de sauvegarde ou pour démarrer un nouveau groupe avec les mêmes données — la synchro entre coéquipiers se fait automatiquement via le groupe, pas besoin d’export/import au quotidien.</p>
-      <div class="sheet-actions">
-        <button type="button" class="btn btn-ghost btn-block" id="stClose">Fermer</button>
-      </div>
-    `;
-    body.querySelector('#stClub').addEventListener('change', (e)=> saveClub(e.target.value.trim()));
-    body.querySelector('#stCopyCode')?.addEventListener('click', async ()=>{
-      try{ await navigator.clipboard.writeText(currentGroup.invite_code); toast('Code copié'); }
-      catch(err){ toast('Copie impossible, note le code à la main : '+currentGroup.invite_code); }
-    });
-    body.querySelector('#stInstall')?.addEventListener('click', async ()=>{
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      closeSheet();
-    });
-    body.querySelector('#stExport').addEventListener('click', exportAllData);
-    body.querySelector('#stImport').addEventListener('click', ()=> body.querySelector('#stImportFile').click());
-    body.querySelector('#stImportFile').addEventListener('change', async (e)=>{
-      const file = e.target.files[0];
-      e.target.value = '';
-      if (!file) return;
-      closeSheet();
-      await importAllData(file);
-    });
-    body.querySelector('#stSignOut').addEventListener('click', async ()=>{
-      await sb.auth.signOut();
-      location.reload();
-    });
-    body.querySelector('#stClose').addEventListener('click', closeSheet);
+    function draw(){
+      const isAdmin = currentGroup.role === 'admin';
+      body.innerHTML = `
+        <h3 class="sheet-title">Réglages</h3>
+        <label class="field"><span>Nom du club (affiché dans les légendes)</span>
+          <input type="text" id="stClub" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
+        </label>
+        <div class="hint-banner" style="margin:0 0 12px;">
+          <strong>Groupe : ${escapeHTML(currentGroup.name)}</strong>
+          ${isAdmin? `<div style="margin-top:8px;">Code d’invitation à partager : <code style="font-family:var(--font-display);font-weight:700;">${escapeHTML(currentGroup.invite_code)}</code> <button type="button" class="btn btn-secondary" id="stCopyCode" style="padding:.3em .8em;font-size:.78rem;">Copier</button></div>` : ''}
+        </div>
+        <label class="field"><span>Membres (${members.length})</span></label>
+        <ul class="member-list" style="margin-bottom:16px;">
+          ${members.map(m=>`
+            <li class="member-row">
+              <span class="member-email">${escapeHTML(m.email || m.user_id.slice(0,8))}${m.role==='admin'? ' <span class="picker-tag">admin</span>':''}</span>
+              ${isAdmin && m.user_id!==currentUser.id? `<button type="button" class="btn-icon" data-remove-member="${escapeAttr(m.user_id)}" title="Retirer">✕</button>`:''}
+            </li>`).join('')}
+        </ul>
+        ${deferredInstallPrompt? `<button type="button" class="btn btn-accent btn-block" id="stInstall" style="margin-bottom:14px;">Installer l’application</button>` : ''}
+        <p class="sheet-msg" style="margin-top:0;">Effectif, templates et compositions sont synchronisés automatiquement avec les autres membres du groupe, et restent consultables hors-ligne (cache local sur cet appareil).</p>
+        <div class="sheet-actions" style="flex-direction:column;">
+          <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter une sauvegarde</button>
+          <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer une sauvegarde</button>
+          <button type="button" class="btn btn-ghost btn-block" id="stSignOut">Se déconnecter</button>
+        </div>
+        <input type="file" accept="application/json" id="stImportFile" hidden>
+        <p class="sheet-msg">L’export sert de sauvegarde ou pour démarrer un nouveau groupe avec les mêmes données — la synchro entre coéquipiers se fait automatiquement via le groupe, pas besoin d’export/import au quotidien.</p>
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-ghost btn-block" id="stClose">Fermer</button>
+        </div>
+      `;
+      body.querySelector('#stClub').addEventListener('change', (e)=> saveClub(e.target.value.trim()));
+      body.querySelector('#stCopyCode')?.addEventListener('click', async ()=>{
+        try{ await navigator.clipboard.writeText(currentGroup.invite_code); toast('Code copié'); }
+        catch(err){ toast('Copie impossible, note le code à la main : '+currentGroup.invite_code); }
+      });
+      body.querySelectorAll('[data-remove-member]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const uid = btn.dataset.removeMember;
+          const m = members.find(x=>x.user_id===uid);
+          confirmDialog('Retirer ce membre ?', (m && m.email ? m.email : 'Ce membre') + ' perdra l’accès au groupe.', async ()=>{
+            try{
+              const { error } = await sb.from('group_members').delete().eq('group_id', currentGroup.id).eq('user_id', uid);
+              if (error) throw error;
+              members = members.filter(x=>x.user_id!==uid);
+              closeSheet();
+              toast('Membre retiré');
+              openSettingsSheet();
+            }catch(err){
+              console.error(err);
+              toast('Échec, réessaie');
+            }
+          });
+        });
+      });
+      body.querySelector('#stInstall')?.addEventListener('click', async ()=>{
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        closeSheet();
+      });
+      body.querySelector('#stExport').addEventListener('click', exportAllData);
+      body.querySelector('#stImport').addEventListener('click', ()=> body.querySelector('#stImportFile').click());
+      body.querySelector('#stImportFile').addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        closeSheet();
+        await importAllData(file);
+      });
+      body.querySelector('#stSignOut').addEventListener('click', async ()=>{
+        await sb.auth.signOut();
+        location.reload();
+      });
+      body.querySelector('#stClose').addEventListener('click', closeSheet);
+    }
+    draw();
   });
 }
 
