@@ -1,4 +1,4 @@
-const CACHE_NAME = 'compoxv-v2';
+const CACHE_NAME = 'compoxv-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -32,25 +32,24 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    // App shell: cache-first, refresh cache in the background, fall back to index.html for navigations.
+    // App shell: network-first, so a new deploy is picked up immediately whenever
+    // there is connectivity. Cache is only a fallback for genuinely offline use.
     event.respondWith(
-      caches.match(req).then((cached) => {
-        const network = fetch(req)
-          .then((res) => {
-            if (res && res.ok) {
-              const copy = res.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-            }
-            return res;
-          })
-          .catch(() => cached || caches.match('./index.html'));
-        return cached || network;
-      })
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
     );
     return;
   }
 
-  // Cross-origin (Google Fonts, etc.): cache-first so a fully offline reload still renders them.
+  // Cross-origin (Google Fonts, the Supabase CDN script, etc.): cache-first so a
+  // fully offline reload still renders them; these rarely change.
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
