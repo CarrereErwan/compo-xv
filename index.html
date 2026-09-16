@@ -2723,36 +2723,46 @@ async function importAllData(file){
 
 /* ---------- settings sheet ---------- */
 async function openSettingsSheet(){
+  if (!currentGroup){
+    toast('Aucun groupe actif — reconnecte-toi si besoin');
+    return;
+  }
   let members = [];
+  let membersError = null;
   try{
     const { data, error } = await sb.rpc('get_group_members', { gid: currentGroup.id });
     if (error) throw error;
     members = data || [];
   }catch(err){
-    console.error(err);
+    console.error('get_group_members RPC failed', err);
+    membersError = err;
     try{
-      const { data } = await sb.from('group_members').select('user_id, role').eq('group_id', currentGroup.id);
+      const { data, error } = await sb.from('group_members').select('user_id, role').eq('group_id', currentGroup.id);
+      if (error) throw error;
       members = (data||[]).map(m=>({...m, email:null}));
-    }catch(e2){ console.error(e2); }
+      membersError = null;
+    }catch(e2){ console.error('group_members fallback failed', e2); membersError = e2; }
   }
   openSheet((body)=>{
     function draw(){
       const isAdmin = currentGroup.role === 'admin';
+      const myId = currentUser && currentUser.id;
       body.innerHTML = `
         <h3 class="sheet-title">Réglages</h3>
         <label class="field"><span>Nom du club (affiché dans les légendes)</span>
           <input type="text" id="stClub" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
         </label>
         <div class="hint-banner" style="margin:0 0 12px;">
-          <strong>Groupe : ${escapeHTML(currentGroup.name)}</strong>
-          ${isAdmin? `<div style="margin-top:8px;">Code d’invitation à partager : <code style="font-family:var(--font-display);font-weight:700;">${escapeHTML(currentGroup.invite_code)}</code> <button type="button" class="btn btn-secondary" id="stCopyCode" style="padding:.3em .8em;font-size:.78rem;">Copier</button></div>` : ''}
+          <strong>Groupe : ${escapeHTML(currentGroup.name||'')}</strong>
+          ${isAdmin? `<div style="margin-top:8px;">Code d’invitation à partager : <code style="font-family:var(--font-display);font-weight:700;">${escapeHTML(currentGroup.invite_code||'')}</code> <button type="button" class="btn btn-secondary" id="stCopyCode" style="padding:.3em .8em;font-size:.78rem;">Copier</button></div>` : ''}
         </div>
         <label class="field"><span>Membres (${members.length})</span></label>
+        ${membersError? `<p class="sheet-msg" style="color:var(--danger);margin-top:0;">Impossible de charger la liste des membres : ${escapeHTML(membersError.message||String(membersError))}</p>` : ''}
         <ul class="member-list" style="margin-bottom:16px;">
           ${members.map(m=>`
             <li class="member-row">
-              <span class="member-email">${escapeHTML(m.email || m.user_id.slice(0,8))}${m.role==='admin'? ' <span class="picker-tag">admin</span>':''}</span>
-              ${isAdmin && m.user_id!==currentUser.id? `<button type="button" class="btn-icon" data-remove-member="${escapeAttr(m.user_id)}" title="Retirer">✕</button>`:''}
+              <span class="member-email">${escapeHTML(m.email || (m.user_id? m.user_id.slice(0,8) : '?'))}${m.role==='admin'? ' <span class="picker-tag">admin</span>':''}</span>
+              ${isAdmin && myId && m.user_id!==myId? `<button type="button" class="btn-icon" data-remove-member="${escapeAttr(m.user_id)}" title="Retirer">✕</button>`:''}
             </li>`).join('')}
         </ul>
         ${deferredInstallPrompt? `<button type="button" class="btn btn-accent btn-block" id="stInstall" style="margin-bottom:14px;">Installer l’application</button>` : ''}
