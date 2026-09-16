@@ -1,0 +1,2068 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compo XV</title>
+<meta name="description" content="Créateur de visuels de composition d'équipe de rugby, 100% hors-ligne.">
+<meta name="theme-color" content="#1E6B47">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F3F6F0;
+  --surface:#FFFFFF;
+  --surface-2:#E9EFE4;
+  --border:#D6E0CE;
+  --text:#182018;
+  --text-muted:#5B6B57;
+  --accent:#1E6B47;
+  --accent-contrast:#FFFFFF;
+  --gold:#C2841F;
+  --gold-contrast:#20140A;
+  --danger:#B23A22;
+  --danger-contrast:#FFFFFF;
+  --shadow:0 1px 2px rgba(20,30,20,.06), 0 6px 16px -6px rgba(20,30,20,.16);
+  --radius-sm:10px;
+  --radius-md:16px;
+  --font-display:'Oswald','Arial Narrow',sans-serif;
+  --font-body:'Work Sans',system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --surface:#161F1A; --surface-2:#1D2921; --border:#2A3A2E;
+    --text:#E9F0E5; --text-muted:#9BAC98; --accent:#57C48A; --accent-contrast:#0A1710;
+    --gold:#E3B15A; --gold-contrast:#241704; --danger:#E5806A; --danger-contrast:#2A0B03;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#161F1A; --surface-2:#1D2921; --border:#2A3A2E;
+  --text:#E9F0E5; --text-muted:#9BAC98; --accent:#57C48A; --accent-contrast:#0A1710;
+  --gold:#E3B15A; --gold-contrast:#241704; --danger:#E5806A; --danger-contrast:#2A0B03;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-tap-highlight-color:transparent;}
+img{max-width:100%;}
+[hidden]{display:none!important;}
+button,input,select,textarea{font-family:inherit;}
+h1,h2,h3{text-wrap:balance;font-family:var(--font-display);margin:0;}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){ *{transition-duration:.001ms!important;animation-duration:.001ms!important;} }
+
+.app{display:flex;flex-direction:column;height:100%;}
+.app-header{flex:0 0 auto;padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);}
+.header-text{flex:1;min-width:0;}
+.brand{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:1.25rem;letter-spacing:.02em;}
+.brand-mark{font-size:1.3rem;}
+.header-sub{color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+.offline-pill{display:none;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:.68rem;font-weight:600;padding:.3em .6em;border-radius:999px;white-space:nowrap;}
+.offline-pill.is-visible{display:inline-flex;}
+.offline-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--danger);}
+.content{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:96px;}
+.view{display:none;}
+.view.active{display:block;}
+.tabbar{flex:0 0 auto;display:flex;border-top:1px solid var(--border);background:var(--surface);padding-bottom:env(safe-area-inset-bottom,0px);}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 8px;background:none;border:none;color:var(--text-muted);font-size:.7rem;font-weight:600;}
+.tab-icon{font-size:1.3rem;}
+.tab-active{color:var(--accent);}
+
+.view-toolbar{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 12px;gap:12px;}
+.view-toolbar h2{font-size:1.3rem;}
+
+.btn{border:none;border-radius:999px;padding:.65em 1.2em;font-weight:600;font-size:.9rem;cursor:pointer;}
+.btn-accent{background:var(--accent);color:var(--accent-contrast);}
+.btn-secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost{background:transparent;color:var(--text-muted);}
+.btn-danger{background:var(--danger);color:var(--danger-contrast);}
+.btn-block{width:100%;}
+.btn[disabled]{opacity:.5;}
+.btn-icon{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:1.05rem;display:flex;align-items:center;justify-content:center;color:var(--text);flex:0 0 auto;}
+
+.player-list,.compo-list{list-style:none;margin:0;padding:0 16px;display:flex;flex-direction:column;gap:10px;}
+.player-row,.compo-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;box-shadow:var(--shadow);}
+.player-photo{width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:1.3rem;}
+.player-photo img{width:100%;height:100%;object-fit:cover;}
+.player-photo-sm{width:40px;height:40px;}
+.player-info{flex:1 1 auto;min-width:0;}
+.player-name{font-weight:600;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.player-pos{color:var(--text-muted);font-size:.78rem;}
+.player-number{font-family:var(--font-display);font-weight:700;font-size:1.15rem;color:var(--accent);font-variant-numeric:tabular-nums;min-width:1.6em;text-align:right;}
+
+.compo-thumb{width:48px;height:48px;border-radius:12px;overflow:hidden;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:1.2rem;}
+.compo-thumb img{width:100%;height:100%;object-fit:cover;}
+.compo-info{flex:1;min-width:0;}
+.compo-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.compo-meta{color:var(--text-muted);font-size:.78rem;}
+
+.template-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 16px;}
+.template-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow);cursor:pointer;}
+.template-thumb{position:relative;width:100%;background:var(--surface-2);}
+.template-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.template-slot-count{position:absolute;left:8px;bottom:8px;background:rgba(8,14,10,.64);color:#fff;font-size:.66rem;font-weight:600;padding:.25em .55em;border-radius:999px;}
+.template-badge{position:absolute;right:8px;top:8px;background:rgba(8,14,10,.64);color:#fff;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.25em .5em;border-radius:999px;}
+.template-card-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;gap:6px;}
+.template-name{font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.template-card-actions{display:flex;gap:2px;flex:0 0 auto;}
+.template-card-actions button{border:none;background:none;font-size:1.05rem;padding:7px;color:var(--text-muted);}
+.list-controls{padding:0 16px 12px;display:flex;flex-direction:column;gap:8px;}
+.chip-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+.chip-row .chip{flex:0 0 auto;}
+.picker-tag{font-size:.66rem;color:var(--text-muted);background:var(--surface-2);padding:.15em .55em;border-radius:999px;margin-left:6px;white-space:nowrap;}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 24px;gap:10px;color:var(--text-muted);}
+.empty-icon{font-size:2.4rem;}
+.empty-state h3{color:var(--text);font-size:1.1rem;}
+.empty-state p{max-width:32ch;font-size:.9rem;line-height:1.4;}
+.hint-banner{margin:0 16px 12px;padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-sm);color:var(--text-muted);font-size:.85rem;}
+
+.editor-toolbar{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;}
+.editor-title-input{flex:1;min-width:0;border:none;background:none;font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--text);padding:6px 4px;border-bottom:1px solid transparent;}
+.editor-title-input:focus{outline:none;border-bottom-color:var(--accent);}
+.editor-hint{margin:0 16px 12px;color:var(--text-muted);font-size:.82rem;}
+.editor-bottom-actions{display:flex;gap:10px;padding:16px;}
+.editor-bottom-actions .btn{flex:1;}
+
+.canvas-wrap{padding:0 16px;}
+.tpl-canvas{position:relative;width:100%;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border);}
+.tpl-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;user-select:none;}
+.tpl-slots{position:absolute;inset:0;}
+.tpl-slot{position:absolute;transform:translate(-50%,-50%);touch-action:none;}
+.tpl-slot.kind-photo,.tpl-slot.kind-logo{aspect-ratio:1;}
+.tpl-slot-shape{width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,.28);border:3px solid #000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3em;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:grab;}
+.tpl-slot-shape img{width:100%;height:100%;object-fit:cover;display:block;}
+.shape-circle{border-radius:50%;}
+.shape-rect{border-radius:14%;}
+.shape-oval{border-radius:50%;clip-path:ellipse(44% 50% at 50% 50%);}
+.tpl-slot-shape.is-selected{outline:3px solid var(--gold);outline-offset:2px;}
+.tpl-slot-shape.is-empty{background:rgba(0,0,0,.18);border-style:dashed;}
+.slot-plus{font-size:1.6em;font-weight:300;opacity:.85;}
+.slot-placeholder{opacity:.75;}
+.tpl-slot-resize{position:absolute;right:-11px;bottom:-11px;width:26px;height:26px;border-radius:50%;background:var(--gold);border:2px solid var(--surface);touch-action:none;z-index:2;}
+.slot-number-poster{position:absolute;left:50%;bottom:6%;transform:translate(-50%,50%);font-family:var(--font-display);font-weight:700;font-size:2.1em;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;line-height:1;pointer-events:none;white-space:nowrap;}
+.slot-number-poster.is-ghost{opacity:.55;}
+.slot-captain-badge{position:absolute;right:-4%;top:2%;width:26%;aspect-ratio:1;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:.75em;border:2px solid #000;}
+.tpl-slot-label{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4%;white-space:nowrap;font-family:var(--font-display);color:#fff;-webkit-text-stroke:1.5px #000;paint-order:stroke fill;font-weight:700;font-size:.78em;}
+.tpl-slot-label.is-ghost{opacity:.55;-webkit-text-stroke:1.5px rgba(0,0,0,.5);}
+.tpl-slot-role{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6%;white-space:nowrap;background:var(--gold);color:var(--gold-contrast);font-weight:700;font-size:.62em;padding:.25em .55em;border-radius:999px;}
+.tpl-slot-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;border:2px dashed rgba(0,0,0,.55);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-family:var(--font-display);-webkit-text-stroke:1px #000;paint-order:stroke fill;overflow:hidden;padding:2%;word-break:break-word;}
+.tpl-slot-text.is-empty{color:rgba(255,255,255,.65);-webkit-text-stroke:0;font-family:var(--font-body);font-weight:600;font-size:.8em;background:rgba(0,0,0,.18);}
+.kind-chip-row{display:flex;gap:8px;margin-bottom:14px;}
+.kind-chip-row .chip{flex:1;text-align:center;}
+.fab{position:fixed;right:20px;bottom:calc(90px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:none;background:var(--accent);color:var(--accent-contrast);font-size:1.6rem;box-shadow:var(--shadow);z-index:5;}
+.fab-active{background:var(--danger);color:var(--danger-contrast);}
+
+.sheet-overlay{position:fixed;inset:0;background:rgba(8,12,9,0);z-index:20;display:flex;align-items:flex-end;justify-content:center;transition:background .25s;}
+.sheet-overlay.is-open{background:rgba(8,12,9,.45);}
+.sheet{width:100%;max-width:520px;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:86vh;overflow-y:auto;padding:8px 20px calc(24px + env(safe-area-inset-bottom,0px));}
+.sheet-overlay.is-open .sheet{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:6px auto 14px;}
+.sheet-title{font-size:1.15rem;margin-bottom:14px;}
+.sheet-msg{color:var(--text-muted);font-size:.88rem;margin:-6px 0 14px;}
+.sheet-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+.sheet-actions .btn{flex:1;}
+
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;font-size:.82rem;color:var(--text-muted);font-weight:600;}
+.field input,.field select,.field textarea{font-family:var(--font-body);font-size:.95rem;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:.6em .7em;}
+.field-row{display:flex;gap:12px;}
+.field-row .field{flex:1;}
+.field-toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 2px;font-size:.9rem;border-bottom:1px solid var(--border);}
+.chip{border:1px solid var(--border);background:var(--surface-2);border-radius:999px;padding:.5em 1.1em;font-weight:600;font-size:.85rem;color:var(--text-muted);}
+.chip-active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+.search-input{width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:10px;padding:.6em .8em;font-size:.9rem;margin-bottom:12px;}
+.picker-list{list-style:none;margin:0;padding:0;max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+.picker-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;}
+.picker-row.is-current{background:var(--surface-2);}
+
+.form-photo{display:flex;justify-content:center;margin-bottom:16px;}
+.photo-picker{border:none;background:none;padding:0;}
+.photo-picker img,.photo-placeholder{width:84px;height:84px;border-radius:50%;object-fit:cover;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:2rem;border:2px dashed var(--border);}
+
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);background:#1c2620;color:#fff;padding:.7em 1.2em;border-radius:999px;font-size:.85rem;z-index:30;opacity:0;transition:opacity .25s,transform .25s;box-shadow:var(--shadow);max-width:80vw;text-align:center;}
+.toast.is-visible{opacity:1;transform:translate(-50%,0);}
+
+.loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:50;text-align:center;padding:0 32px;}
+.loading.is-busy{background:rgba(8,12,9,.5);}
+.loading-mark{font-size:2.6rem;}
+.loading.is-busy .loading-mark{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loadingText{color:var(--text-muted);font-size:.9rem;max-width:40ch;}
+.loading.is-busy #loadingText{color:#fff;}
+
+.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.format-card{border:2px solid var(--border);background:var(--surface-2);border-radius:12px;padding:10px;text-align:center;color:var(--text-muted);font-size:.8rem;font-weight:600;}
+.format-card.is-selected{border-color:var(--accent);color:var(--accent);}
+.format-swatch{margin:0 auto 6px;background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="loading-mark">🏉</div>
+  <p id="loadingText">Chargement…</p>
+</div>
+
+<div id="app" class="app" hidden>
+  <header class="app-header">
+    <div class="header-text">
+      <div class="brand"><span class="brand-mark">🏉</span><span class="brand-name">Compo&nbsp;XV</span></div>
+      <div class="header-sub" id="headerSub">Compositions</div>
+    </div>
+    <span class="offline-pill" id="offlinePill"><span class="dot"></span>Hors ligne</span>
+    <button class="btn-icon" id="btnSettings" title="Réglages">⚙️</button>
+  </header>
+
+  <main id="content" class="content">
+    <section id="view-compo" class="view"></section>
+    <section id="view-effectif" class="view"></section>
+    <section id="view-design" class="view"></section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab" data-view="compo"><span class="tab-icon">🏉</span><span>Compo</span></button>
+    <button class="tab" data-view="effectif"><span class="tab-icon">👥</span><span>Effectif</span></button>
+    <button class="tab" data-view="design"><span class="tab-icon">🎨</span><span>Design</span></button>
+  </nav>
+</div>
+
+<div id="sheetOverlay" class="sheet-overlay" hidden>
+  <div id="sheet" class="sheet" role="dialog">
+    <div class="sheet-handle"></div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ---------- IndexedDB layer ---------- */
+let idb = null;
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open('compoxv', 1);
+    req.onupgradeneeded = (e)=>{
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('players')) d.createObjectStore('players', {keyPath:'id'});
+      if (!d.objectStoreNames.contains('templates')) d.createObjectStore('templates', {keyPath:'id'});
+      if (!d.objectStoreNames.contains('posts')) d.createObjectStore('posts', {keyPath:'id'});
+      if (!d.objectStoreNames.contains('photos')) d.createObjectStore('photos', {keyPath:'id'});
+      if (!d.objectStoreNames.contains('logos')) d.createObjectStore('logos', {keyPath:'id'});
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', {keyPath:'key'});
+    };
+    req.onsuccess = (e)=>{ idb = e.target.result; resolve(idb); };
+    req.onerror = (e)=> reject(e.target.error);
+  });
+}
+function idbGetAll(store){
+  return new Promise((resolve, reject)=>{
+    const req = idb.transaction(store,'readonly').objectStore(store).getAll();
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function idbGet(store, key){
+  return new Promise((resolve, reject)=>{
+    const req = idb.transaction(store,'readonly').objectStore(store).get(key);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function idbPut(store, value){
+  return new Promise((resolve, reject)=>{
+    const req = idb.transaction(store,'readwrite').objectStore(store).put(value);
+    req.onsuccess = ()=> resolve(value);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function idbDelete(store, key){
+  return new Promise((resolve, reject)=>{
+    const req = idb.transaction(store,'readwrite').objectStore(store).delete(key);
+    req.onsuccess = ()=> resolve();
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbUpdate(store, key, patch){
+  const cur = (await idbGet(store, key)) || {id:key};
+  return idbPut(store, {...cur, ...patch});
+}
+function newId(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
+}
+
+/* ---------- photo storage (blobs live in IndexedDB, never on a server) ---------- */
+const photoUrlCache = new Map();
+async function storePhoto(blob){
+  const id = newId();
+  await idbPut('photos', {id, blob});
+  photoUrlCache.set(id, URL.createObjectURL(blob));
+  return id;
+}
+async function getPhotoBlobById(id){
+  const rec = await idbGet('photos', id);
+  return rec ? rec.blob : null;
+}
+async function warmPhotoCache(ids){
+  const missing = [...new Set(ids.filter(Boolean))].filter(id=> !photoUrlCache.has(id));
+  await Promise.all(missing.map(async (id)=>{
+    try{
+      const blob = await getPhotoBlobById(id);
+      if (blob) photoUrlCache.set(id, URL.createObjectURL(blob));
+    }catch(err){ console.error(err); }
+  }));
+}
+function photoUrl(id){ return id ? (photoUrlCache.get(id) || '') : ''; }
+async function loadBitmapForPhoto(id){
+  const blob = await getPhotoBlobById(id);
+  return blob ? await createImageBitmap(blob) : null;
+}
+
+/* ---------- app state ---------- */
+const POSITIONS = ["Pilier","Talonneur","Deuxième ligne","Troisième ligne aile","Troisième ligne centre","Demi de mêlée","Demi d'ouverture","Ailier","Centre","Arrière","Remplaçant","Staff"];
+const IG_FORMATS = {
+  square:   { label:'Carré · 1080×1080',   w:1080, h:1080 },
+  portrait: { label:'Portrait · 1080×1350', w:1080, h:1350 },
+  story:    { label:'Story · 1080×1920',    w:1080, h:1920 },
+  free:     { label:'Format libre',         w:null, h:null },
+};
+
+const state = {
+  view: 'compo',
+  templates: [],
+  players: [],
+  compos: [],
+  design: { subview:'list', templateId:null, template:null, selectedSlotId:null, addMode:false },
+  compo: { subview:'list', compoId:null, compo:null, template:null },
+  effectif: { sort:'number', query:'' },
+  settings: { club:'' },
+};
+
+let deferredInstallPrompt = null;
+let toastTimer = null;
+
+const els = {
+  loading: document.getElementById('loading'),
+  loadingText: document.getElementById('loadingText'),
+  app: document.getElementById('app'),
+  headerSub: document.getElementById('headerSub'),
+  offlinePill: document.getElementById('offlinePill'),
+  viewCompo: document.getElementById('view-compo'),
+  viewEffectif: document.getElementById('view-effectif'),
+  viewDesign: document.getElementById('view-design'),
+  sheetOverlay: document.getElementById('sheetOverlay'),
+  sheetBody: document.getElementById('sheetBody'),
+  toast: document.getElementById('toast'),
+};
+
+/* ---------- helpers ---------- */
+function clamp(v,min,max){ return Math.min(max, Math.max(min, v)); }
+function escapeHTML(str){ return String(str==null?'':str).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(str){ return String(str==null?'':str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function formatDateShort(d){ return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'}); }
+function sanitizeFilename(s){
+  const base = String(s||'compo').replace(/[\\/:*?"<>|]/g,'').trim().replace(/\s+/g,'-').slice(0,60);
+  return base || 'compo';
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+
+function toast(msg){
+  els.toast.textContent = msg;
+  els.toast.hidden = false;
+  requestAnimationFrame(()=> els.toast.classList.add('is-visible'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{
+    els.toast.classList.remove('is-visible');
+    setTimeout(()=>{ els.toast.hidden = true; }, 250);
+  }, 2400);
+}
+function showBusy(msg){ els.loadingText.textContent = msg; els.loading.hidden = false; els.loading.classList.add('is-busy'); }
+function hideBusy(){ els.loading.hidden = true; els.loading.classList.remove('is-busy'); }
+
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      let width = img.naturalWidth, height = img.naturalHeight;
+      if (width > maxDim || height > maxDim){
+        if (width > height){ height = Math.round(height * maxDim/width); width = maxDim; }
+        else { width = Math.round(width * maxDim/height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob)=>{
+        URL.revokeObjectURL(url);
+        if (!blob){ reject(new Error('toBlob failed')); return; }
+        resolve({blob, width, height});
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+function resizeImageToExact(file, targetW, targetH, quality){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW; canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      drawCover(ctx, img, 0, 0, targetW, targetH);
+      canvas.toBlob((blob)=>{
+        URL.revokeObjectURL(url);
+        if (!blob){ reject(new Error('toBlob failed')); return; }
+        resolve({blob, width:targetW, height:targetH});
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+function loadImage(src){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+function drawCover(ctx, img, x, y, w, h){
+  const ir = img.width/img.height, tr = w/h;
+  let sx,sy,sw,sh;
+  if (ir > tr){ sh = img.height; sw = sh*tr; sx = (img.width-sw)/2; sy = 0; }
+  else { sw = img.width; sh = sw/tr; sx = 0; sy = (img.height-sh)/2; }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+function roundRectPath(ctx,x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+function pathForSlot(ctx, slot, cx, cy, r, d){
+  ctx.beginPath();
+  if (slot.shape === 'oval'){ ctx.ellipse(cx, cy, r*0.88, r, 0, 0, Math.PI*2); }
+  else if (slot.shape === 'circle'){ ctx.arc(cx,cy,r,0,Math.PI*2); }
+  else { roundRectPath(ctx, cx-r, cy-r, d, d, d*0.14); }
+}
+function strokeFillText(ctx, text, x, y, fontPx, fontFamily, weight, fillColor, strokeRatio){
+  ctx.font = `${weight} ${Math.round(fontPx)}px ${fontFamily}`;
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  ctx.lineWidth = fontPx * strokeRatio;
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = fillColor;
+  ctx.fillText(text, x, y);
+}
+
+/* ---------- sheet ---------- */
+function openSheet(builderFn){
+  els.sheetOverlay.hidden = false;
+  requestAnimationFrame(()=> els.sheetOverlay.classList.add('is-open'));
+  builderFn(els.sheetBody);
+}
+function closeSheet(){
+  els.sheetOverlay.classList.remove('is-open');
+  setTimeout(()=>{ if (!els.sheetOverlay.classList.contains('is-open')) els.sheetOverlay.hidden = true; }, 250);
+}
+function confirmDialog(title, msg, onConfirm){
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">${escapeHTML(title)}</h3>
+      ${msg? `<p class="sheet-msg">${escapeHTML(msg)}</p>` : ''}
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="cCancel">Annuler</button>
+        <button type="button" class="btn btn-danger" id="cConfirm">Confirmer</button>
+      </div>`;
+    body.querySelector('#cCancel').addEventListener('click', closeSheet);
+    body.querySelector('#cConfirm').addEventListener('click', onConfirm);
+  });
+}
+function emptyState(icon,title,msg,btnLabel,btnId,disabled){
+  return `
+  <div class="empty-state">
+    <div class="empty-icon">${icon}</div>
+    <h3>${escapeHTML(title)}</h3>
+    <p>${escapeHTML(msg)}</p>
+    <button type="button" class="btn btn-accent" id="${btnId}" ${disabled?'disabled':''}>${escapeHTML(btnLabel)}</button>
+  </div>`;
+}
+
+/* ---------- data ---------- */
+async function loadAll(){
+  const [players, templates, compos, settings] = await Promise.all([
+    idbGetAll('players'),
+    idbGetAll('templates'),
+    idbGetAll('posts'),
+    idbGet('settings', 'app'),
+  ]);
+  state.players = players;
+  state.templates = templates;
+  state.compos = compos;
+  state.settings.club = (settings && settings.club) || '';
+}
+async function refreshTemplates(){ state.templates = await idbGetAll('templates'); }
+async function refreshPlayers(){ state.players = await idbGetAll('players'); }
+async function refreshCompos(){ state.compos = await idbGetAll('posts'); }
+async function saveClub(name){
+  state.settings.club = name;
+  await idbPut('settings', {key:'app', club:name});
+}
+
+/* ---------- navigation ---------- */
+function switchView(view){
+  state.view = view;
+  document.querySelectorAll('.tab').forEach(b=> b.classList.toggle('tab-active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=> v.classList.toggle('active', v.id==='view-'+view));
+  els.headerSub.textContent = {compo:'Compositions', effectif:'Effectif', design:'Templates'}[view];
+  render();
+}
+function render(){
+  if (state.view==='compo') renderCompoView();
+  else if (state.view==='effectif') renderEffectifView();
+  else if (state.view==='design') renderDesignView();
+}
+function bindTabbar(){
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=> switchView(btn.dataset.view));
+  });
+}
+
+/* ---------- shared slot canvas ---------- */
+function renderSlotsInCanvas(container, canvasEl, template, mode, extra){
+  container.innerHTML = '';
+  (template.slots||[]).forEach(slot=>{
+    const kind = slot.kind || 'photo';
+    const wrap = document.createElement('div');
+    wrap.className = 'tpl-slot kind-'+kind;
+    wrap.style.left = (slot.x*100)+'%';
+    wrap.style.top = (slot.y*100)+'%';
+    wrap.style.width = (slot.w*100)+'%';
+    if (kind==='text') wrap.style.height = ((slot.h!=null?slot.h:0.08)*100)+'%';
+    wrap.dataset.slotId = slot.id;
+
+    if (kind==='text'){
+      const box = document.createElement('div');
+      let content = '';
+      if (mode==='compo') content = extra.assignments[slot.id] || '';
+      box.className = 'tpl-slot-text' + (content? '' : ' is-empty');
+      box.style.fontSize = ((slot.fontSize!=null?slot.fontSize:0.05)*100)+'%';
+      box.style.color = slot.color || '#ffffff';
+      box.textContent = content || (mode==='design' ? (slot.placeholder||'Texte libre') : 'Toucher pour éditer');
+      wrap.appendChild(box);
+    } else {
+      const shape = document.createElement('div');
+      const selected = mode==='design' && state.design.selectedSlotId===slot.id;
+      const shapeClass = slot.shape==='oval' ? 'shape-oval' : (slot.shape==='circle' ? 'shape-circle' : 'shape-rect');
+      shape.className = 'tpl-slot-shape ' + shapeClass + (selected?' is-selected':'');
+
+      let player = null;
+      let logoImgId = null;
+      if (mode==='compo'){
+        const val = extra.assignments[slot.id];
+        if (kind==='logo'){
+          logoImgId = val || null;
+          if (logoImgId) shape.innerHTML = `<img src="${escapeAttr(photoUrl(logoImgId))}" alt="">`;
+          else { shape.classList.add('is-empty'); shape.innerHTML = `<span class="slot-plus">🛡️</span>`; }
+        } else {
+          player = val? (state.players.find(p=>p.id===val) || null) : null;
+          if (player && player.photoAssetId){
+            shape.innerHTML = `<img src="${escapeAttr(photoUrl(player.photoAssetId))}" alt="">`;
+          } else if (player){
+            shape.innerHTML = `<span class="slot-placeholder">👤</span>`;
+          } else {
+            shape.classList.add('is-empty');
+            shape.innerHTML = `<span class="slot-plus">+</span>`;
+          }
+        }
+      } else {
+        shape.innerHTML = kind==='logo' ? `<span class="slot-placeholder">🛡️</span>` : `<span class="slot-placeholder">👤</span>`;
+      }
+
+      wrap.appendChild(shape);
+
+      if (kind==='photo'){
+        if (mode==='compo' && player && slot.showNumber && player.number!=null){
+          const badge = document.createElement('div');
+          badge.className = 'slot-number-poster';
+          badge.textContent = player.number;
+          wrap.appendChild(badge);
+        } else if (mode==='design' && slot.showNumber){
+          const badge = document.createElement('div');
+          badge.className = 'slot-number-poster is-ghost';
+          badge.textContent = '0';
+          wrap.appendChild(badge);
+        }
+        if (mode==='compo' && player && slot.showName && player.name){
+          const label = document.createElement('div');
+          label.className = 'tpl-slot-label';
+          label.textContent = player.name;
+          wrap.appendChild(label);
+        } else if (mode==='design' && slot.showName){
+          const label = document.createElement('div');
+          label.className = 'tpl-slot-label is-ghost';
+          label.textContent = 'Nom';
+          wrap.appendChild(label);
+        }
+        if (mode==='design' && slot.role){
+          const roleTag = document.createElement('div');
+          roleTag.className = 'tpl-slot-role';
+          roleTag.textContent = slot.role;
+          wrap.appendChild(roleTag);
+        }
+        if (mode==='compo' && player && extra.captainSlotId===slot.id){
+          const cap = document.createElement('div');
+          cap.className = 'slot-captain-badge';
+          cap.textContent = 'C';
+          wrap.appendChild(cap);
+        }
+      }
+    }
+
+    container.appendChild(wrap);
+
+    if (mode==='design'){
+      bindSlotDrag(wrap, canvasEl, template, slot);
+      wrap.addEventListener('click', ()=>{
+        if (wrap.dataset.dragged==='1'){ wrap.dataset.dragged='0'; return; }
+        selectSlot(slot.id);
+      });
+    } else if (mode==='compo'){
+      wrap.addEventListener('click', ()=> extra.onSlotTap(slot.id));
+    }
+  });
+
+  if (mode==='design'){
+    canvasEl.onclick = (e)=>{
+      if (e.target.closest('.tpl-slot')) return;
+      if (!state.design.addMode) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const x = clamp((e.clientX-rect.left)/rect.width, 0.03, 0.97);
+      const y = clamp((e.clientY-rect.top)/rect.height, 0.03, 0.97);
+      addSlot(template, x, y);
+    };
+  } else {
+    canvasEl.onclick = null;
+  }
+}
+
+function bindSlotDrag(wrap, canvasEl, template, slot){
+  const isText = (slot.kind||'photo')==='text';
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'tpl-slot-resize';
+  wrap.appendChild(resizeHandle);
+
+  function start(e, mode){
+    e.stopPropagation();
+    e.preventDefault();
+    const pid = e.pointerId;
+    wrap.setPointerCapture(pid);
+    let startX = e.clientX, startY = e.clientY, moved = false;
+    const rect = canvasEl.getBoundingClientRect();
+    function move(ev){
+      if (ev.pointerId !== pid) return;
+      const dx = ev.clientX-startX, dy = ev.clientY-startY;
+      if (Math.abs(dx)>4 || Math.abs(dy)>4) moved = true;
+      if (mode==='move'){
+        slot.x = clamp(slot.x + dx/rect.width, 0.02, 0.98);
+        slot.y = clamp(slot.y + dy/rect.height, 0.02, 0.98);
+        wrap.style.left = (slot.x*100)+'%';
+        wrap.style.top = (slot.y*100)+'%';
+      } else if (isText){
+        slot.w = clamp(slot.w + dx/rect.width, 0.08, 0.9);
+        slot.h = clamp((slot.h!=null?slot.h:0.08) + dy/rect.height, 0.04, 0.5);
+        wrap.style.width = (slot.w*100)+'%';
+        wrap.style.height = (slot.h*100)+'%';
+      } else {
+        const delta = (dx+dy)/2/rect.width;
+        slot.w = clamp(slot.w + delta, 0.05, 0.4);
+        wrap.style.width = (slot.w*100)+'%';
+      }
+      startX = ev.clientX; startY = ev.clientY;
+    }
+    function up(ev){
+      if (ev.pointerId !== pid) return;
+      wrap.removeEventListener('pointermove', move);
+      wrap.removeEventListener('pointerup', up);
+      try{ wrap.releasePointerCapture(pid); }catch(err){}
+      if (moved){ wrap.dataset.dragged = '1'; persistSlots(template); }
+    }
+    wrap.addEventListener('pointermove', move);
+    wrap.addEventListener('pointerup', up);
+  }
+  wrap.addEventListener('pointerdown', (e)=> start(e, 'move'));
+  resizeHandle.addEventListener('pointerdown', (e)=> start(e, 'resize'));
+}
+
+function rerenderCurrentCanvas(){
+  if (state.view==='design' && state.design.subview==='editor'){
+    const canvasEl = document.getElementById('tplCanvas');
+    const container = document.getElementById('tplSlots');
+    if (canvasEl && container) renderSlotsInCanvas(container, canvasEl, state.design.template, 'design');
+  }
+  if (state.view==='compo' && state.compo.subview==='editor'){
+    const canvasEl = document.getElementById('compoCanvas');
+    const container = document.getElementById('compoSlots');
+    if (canvasEl && container){
+      const ids = slotAssignmentPhotoIds(state.compo.template, state.compo.compo.assignments);
+      warmPhotoCache(ids).then(()=> renderSlotsInCanvas(container, canvasEl, state.compo.template, 'compo', {
+        assignments: state.compo.compo.assignments,
+        captainSlotId: state.compo.compo.captainSlotId,
+        onSlotTap: onCompoSlotTap,
+      }));
+    }
+  }
+}
+function slotAssignmentPhotoIds(template, assignments){
+  const ids = [];
+  (template.slots||[]).forEach(slot=>{
+    const kind = slot.kind || 'photo';
+    const val = assignments[slot.id];
+    if (!val) return;
+    if (kind==='logo') ids.push(val);
+    else if (kind==='photo'){
+      const p = state.players.find(pp=>pp.id===val);
+      if (p && p.photoAssetId) ids.push(p.photoAssetId);
+    }
+  });
+  return ids;
+}
+
+function persistSlots(template){
+  idbUpdate('templates', template.id, {slots: template.slots}).then(()=> refreshTemplates());
+}
+
+function addSlot(template, x, y){
+  const slot = { id: 's'+Math.random().toString(36).slice(2,9), x, y, w:0.16, h:0.08, shape:'oval', kind:'photo', showName:true, showNumber:true, role:'', fontSize:0.05, color:'#ffffff', placeholder:'Texte libre' };
+  template.slots.push(slot);
+  persistSlots(template);
+  rerenderCurrentCanvas();
+  selectSlot(slot.id);
+}
+
+function selectSlot(id){
+  state.design.selectedSlotId = id;
+  document.querySelectorAll('.tpl-slot-shape').forEach(s=>s.classList.remove('is-selected'));
+  const wrap = document.querySelector('.tpl-slot[data-slot-id="'+CSS.escape(id)+'"]');
+  wrap && wrap.querySelector('.tpl-slot-shape') && wrap.querySelector('.tpl-slot-shape').classList.add('is-selected');
+  openSlotConfigSheet(id);
+}
+
+const KIND_LABELS = { photo:'Joueur', logo:'Logo équipe', text:'Texte libre' };
+function openSlotConfigSheet(slotId){
+  const t = state.design.template;
+  const slot = t.slots.find(s=>s.id===slotId);
+  if (!slot) return;
+  slot.kind = slot.kind || 'photo';
+  openSheet((body)=>{
+    function draw(){
+      const kind = slot.kind;
+      body.innerHTML = `
+        <h3 class="sheet-title">Emplacement</h3>
+        <div class="kind-chip-row">
+          ${Object.entries(KIND_LABELS).map(([k,l])=>`<button type="button" class="chip ${kind===k?'chip-active':''}" data-kind="${k}">${l}</button>`).join('')}
+        </div>
+        ${kind==='text' ? `
+          <label class="field"><span>Style</span></label>
+          <div class="field-row" style="margin-bottom:14px;">
+            <button type="button" class="chip ${(slot.fontSize||0.05)>=0.07?'chip-active':''}" data-fs="0.09">Titre</button>
+            <button type="button" class="chip ${(slot.fontSize||0.05)<0.07?'chip-active':''}" data-fs="0.045">Texte</button>
+          </div>
+          <label class="field"><span>Couleur</span></label>
+          <div class="field-row" style="margin-bottom:14px;">
+            <button type="button" class="chip ${(slot.color||'#ffffff')==='#ffffff'?'chip-active':''}" data-color="#ffffff">Blanc</button>
+            <button type="button" class="chip ${slot.color==='#000000'?'chip-active':''}" data-color="#000000">Noir</button>
+            <button type="button" class="chip ${slot.color==='#C2841F'?'chip-active':''}" data-color="#C2841F">Doré</button>
+          </div>
+          <p class="sheet-msg">Redimensionne l’encadré (poignée en bas) puis, dans l’onglet Compo, touche-le pour taper le texte (score, date, finishers…).</p>
+        ` : `
+          <div class="field-row" style="margin-bottom:14px;">
+            <button type="button" class="chip ${slot.shape==='oval'?'chip-active':''}" data-shape="oval">Ovale</button>
+            <button type="button" class="chip ${slot.shape==='circle'?'chip-active':''}" data-shape="circle">Cercle</button>
+            <button type="button" class="chip ${slot.shape==='rect'?'chip-active':''}" data-shape="rect">Carré</button>
+          </div>
+          <label class="field">
+            <span>Taille</span>
+            <input type="range" id="fSize" min="0.06" max="0.36" step="0.01" value="${slot.w}">
+          </label>
+          ${kind==='photo' ? `
+          <label class="field-toggle">
+            <span>Afficher le nom</span>
+            <input type="checkbox" id="fShowName" ${slot.showName?'checked':''}>
+          </label>
+          <label class="field-toggle">
+            <span>Afficher le numéro</span>
+            <input type="checkbox" id="fShowNumber" ${slot.showNumber?'checked':''}>
+          </label>
+          <label class="field" style="margin-top:14px;">
+            <span>Poste attendu (aide au choix du joueur, optionnel)</span>
+            <select id="fRole">
+              <option value="">—</option>
+              ${POSITIONS.map(pos=>`<option value="${escapeAttr(pos)}" ${slot.role===pos?'selected':''}>${pos}</option>`).join('')}
+            </select>
+          </label>` : `<p class="sheet-msg">Dans l’onglet Compo, touche cet emplacement pour choisir ou importer le logo (club, adversaire, tournoi…).</p>`}
+        `}
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-danger" id="btnDeleteSlot">Supprimer</button>
+          <button type="button" class="btn btn-secondary" id="btnDuplicateSlot">Dupliquer</button>
+          <button type="button" class="btn btn-accent" id="btnDoneSlot">OK</button>
+        </div>`;
+
+      body.querySelectorAll('[data-kind]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          slot.kind = b.dataset.kind;
+          persistSlots(t); rerenderCurrentCanvas(); draw();
+        });
+      });
+      body.querySelectorAll('[data-shape]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          slot.shape = b.dataset.shape;
+          body.querySelectorAll('[data-shape]').forEach(x=> x.classList.toggle('chip-active', x===b));
+          persistSlots(t); rerenderCurrentCanvas();
+        });
+      });
+      body.querySelectorAll('[data-fs]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          slot.fontSize = Number(b.dataset.fs);
+          persistSlots(t); rerenderCurrentCanvas(); draw();
+        });
+      });
+      body.querySelectorAll('[data-color]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          slot.color = b.dataset.color;
+          persistSlots(t); rerenderCurrentCanvas(); draw();
+        });
+      });
+      body.querySelector('#fSize')?.addEventListener('input', (e)=>{
+        slot.w = Number(e.target.value);
+        rerenderCurrentCanvas();
+      });
+      body.querySelector('#fSize')?.addEventListener('change', ()=> persistSlots(t));
+      body.querySelector('#fShowName')?.addEventListener('change', (e)=>{ slot.showName = e.target.checked; persistSlots(t); rerenderCurrentCanvas(); });
+      body.querySelector('#fShowNumber')?.addEventListener('change', (e)=>{ slot.showNumber = e.target.checked; persistSlots(t); rerenderCurrentCanvas(); });
+      body.querySelector('#fRole')?.addEventListener('change', (e)=>{ slot.role = e.target.value; persistSlots(t); rerenderCurrentCanvas(); });
+      body.querySelector('#btnDuplicateSlot').addEventListener('click', ()=>{
+        const copy = { ...slot, id:'s'+Math.random().toString(36).slice(2,9), x: clamp(slot.x+0.06,0.02,0.98), y: clamp(slot.y+0.06,0.02,0.98) };
+        t.slots.push(copy);
+        persistSlots(t);
+        rerenderCurrentCanvas();
+        selectSlot(copy.id);
+      });
+      body.querySelector('#btnDeleteSlot').addEventListener('click', ()=>{
+        confirmDialog('Supprimer cet emplacement ?', '', ()=>{
+          t.slots = t.slots.filter(s=>s.id!==slotId);
+          persistSlots(t);
+          state.design.selectedSlotId = null;
+          rerenderCurrentCanvas();
+          closeSheet();
+        });
+      });
+      body.querySelector('#btnDoneSlot').addEventListener('click', closeSheet);
+    }
+    draw();
+  });
+}
+
+/* ---------- design view ---------- */
+async function renderDesignView(){
+  const root = els.viewDesign;
+  if (state.design.subview==='editor' && state.design.template){
+    renderDesignEditor(root);
+    return;
+  }
+  const list = [...state.templates].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  await warmPhotoCache(list.map(t=>t.bgAssetId));
+  root.innerHTML = `
+    <div class="view-toolbar">
+      <h2>Templates</h2>
+      <button class="btn btn-accent" id="btnNewTemplate">+ Nouveau</button>
+    </div>
+    ${list.length===0 ? emptyState('🎨','Aucun template','Importe le visuel de ta publication (fond, cadre, sponsors) puis place les emplacements dessus.','Créer un template','btnEmptyNewTemplate') : `
+    <div class="template-grid">${list.map(templateCardHTML).join('')}</div>`}
+  `;
+  const openPicker = ()=> openNewTemplateSheet();
+  root.querySelector('#btnNewTemplate')?.addEventListener('click', openPicker);
+  root.querySelector('#btnEmptyNewTemplate')?.addEventListener('click', openPicker);
+  root.querySelectorAll('[data-open-template]').forEach(card=>{
+    card.addEventListener('click', ()=> openTemplateEditor(card.dataset.openTemplate));
+  });
+  root.querySelectorAll('[data-dup-template]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); duplicateTemplate(btn.dataset.dupTemplate); });
+  });
+  root.querySelectorAll('[data-del-template]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.delTemplate;
+      confirmDialog('Supprimer ce template ?', 'Les compositions qui l’utilisent resteront mais ne pourront plus être modifiées.', async ()=>{
+        await idbDelete('templates', id);
+        await refreshTemplates();
+        closeSheet();
+        renderDesignView();
+        toast('Template supprimé');
+      });
+    });
+  });
+}
+const CATEGORY_LABELS = { compo:'Compo', resultat:'Résultat', autre:'Autre' };
+function templateCardHTML(t){
+  const bg = photoUrl(t.bgAssetId);
+  const count = (t.slots||[]).length;
+  return `
+  <div class="template-card" data-open-template="${t.id}">
+    <div class="template-thumb" style="aspect-ratio:${t.bgW||1}/${t.bgH||1}">
+      ${bg? `<img src="${escapeAttr(bg)}" alt="">` : ''}
+      <span class="template-badge">${CATEGORY_LABELS[t.category]||'Compo'}</span>
+      <span class="template-slot-count">${count} emplacement${count>1?'s':''}</span>
+    </div>
+    <div class="template-card-footer">
+      <span class="template-name">${escapeHTML(t.name||'Sans nom')}</span>
+      <div class="template-card-actions">
+        <button type="button" data-dup-template="${t.id}" title="Dupliquer">⧉</button>
+        <button type="button" data-del-template="${t.id}" title="Supprimer">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+function openNewTemplateSheet(){
+  let format = 'square';
+  let category = 'compo';
+  openSheet((body)=>{
+    function draw(){
+      body.innerHTML = `
+        <h3 class="sheet-title">Nouveau template</h3>
+        <label class="field"><span>Type de publication</span></label>
+        <div class="chip-row" id="catChips" style="margin:-6px 0 14px;">
+          ${Object.entries(CATEGORY_LABELS).map(([k,l])=>`<button type="button" class="chip ${category===k?'chip-active':''}" data-cat="${k}">${l}</button>`).join('')}
+        </div>
+        <label class="field"><span>Format (dimensions Instagram)</span></label>
+        <div class="format-grid" id="formatGrid">
+          ${Object.entries(IG_FORMATS).map(([k,f])=>{
+            const ratio = f.w ? (f.w/f.h) : (4/5);
+            const swW = Math.round(44*Math.min(1,ratio)); const swH = Math.round(44/Math.max(1,ratio));
+            return `<button type="button" class="format-card ${format===k?'is-selected':''}" data-format="${k}">
+              <div class="format-swatch" style="width:${swW}px;height:${swH}px;"></div>
+              ${f.label}
+            </button>`;
+          }).join('')}
+        </div>
+        <p class="sheet-msg">L'image importée sera recadrée automatiquement à la bonne taille (sauf en format libre).</p>
+        <input type="file" accept="image/*" id="tplFile" hidden>
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-ghost" id="tplCancel">Annuler</button>
+          <button type="button" class="btn btn-accent" id="tplNext">Choisir le visuel</button>
+        </div>`;
+      body.querySelectorAll('[data-cat]').forEach(b=> b.addEventListener('click', ()=>{ category=b.dataset.cat; draw(); }));
+      body.querySelectorAll('[data-format]').forEach(b=> b.addEventListener('click', ()=>{ format=b.dataset.format; draw(); }));
+      body.querySelector('#tplCancel').addEventListener('click', closeSheet);
+      body.querySelector('#tplNext').addEventListener('click', ()=> body.querySelector('#tplFile').click());
+      body.querySelector('#tplFile').addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        closeSheet();
+        await createTemplateFromFile(file, format, category);
+      });
+    }
+    draw();
+  });
+}
+async function createTemplateFromFile(file, format, category){
+  showBusy('Import du visuel…');
+  try{
+    const fmt = IG_FORMATS[format] || IG_FORMATS.square;
+    const result = fmt.w
+      ? await resizeImageToExact(file, fmt.w, fmt.h, 0.88)
+      : await resizeImage(file, 2000, 0.88);
+    const photoId = await storePhoto(result.blob);
+    const data = { id:newId(), name:'Nouveau template', category, bgAssetId:photoId, bgW:result.width, bgH:result.height, slots:[], createdAt:new Date().toISOString() };
+    await idbPut('templates', data);
+    await refreshTemplates();
+    openTemplateEditor(data.id);
+  }catch(err){
+    console.error(err);
+    toast('Import impossible, réessaie');
+  }finally{
+    hideBusy();
+  }
+}
+async function duplicateTemplate(id){
+  const t = state.templates.find(x=>x.id===id);
+  if (!t) return;
+  const data = { id:newId(), name:(t.name||'Template')+' (copie)', category:t.category||'compo', bgAssetId:t.bgAssetId, bgW:t.bgW, bgH:t.bgH, slots:(t.slots||[]).map(s=>({...s})), createdAt:new Date().toISOString() };
+  await idbPut('templates', data);
+  await refreshTemplates();
+  renderDesignView();
+  toast('Template dupliqué');
+}
+function openTemplateEditor(id){
+  const t = state.templates.find(x=>x.id===id);
+  if (!t) return;
+  state.design.subview = 'editor';
+  state.design.templateId = id;
+  state.design.template = JSON.parse(JSON.stringify(t));
+  state.design.template.slots = state.design.template.slots || [];
+  state.design.selectedSlotId = null;
+  state.design.addMode = false;
+  render();
+}
+async function renderDesignEditor(root){
+  const t = state.design.template;
+  await warmPhotoCache([t.bgAssetId]);
+  root.innerHTML = `
+    <div class="editor-toolbar">
+      <button class="btn-icon" id="btnBack">←</button>
+      <input type="text" id="tplName" class="editor-title-input" value="${escapeAttr(t.name||'')}" placeholder="Nom du template">
+      <button class="btn-icon" id="btnChangeBg" title="Changer le visuel">🖼</button>
+    </div>
+    <input type="file" accept="image/*" id="changeBgFile" hidden>
+    <p class="editor-hint">Touche un emplacement pour le régler, glisse-le pour le déplacer, ou ajoute-en un nouveau avec le bouton +.</p>
+    <div class="canvas-wrap">
+      <div class="tpl-canvas" id="tplCanvas" style="aspect-ratio:${t.bgW||1}/${t.bgH||1}">
+        <img class="tpl-bg" src="${t.bgAssetId? escapeAttr(photoUrl(t.bgAssetId)):''}" alt="">
+        <div class="tpl-slots" id="tplSlots"></div>
+      </div>
+    </div>
+    <button class="fab ${state.design.addMode?'fab-active':''}" id="btnAddSlot">${state.design.addMode?'✕':'+'}</button>
+  `;
+  root.querySelector('#btnBack').addEventListener('click', ()=>{
+    state.design.subview = 'list';
+    state.design.template = null;
+    render();
+  });
+  root.querySelector('#tplName').addEventListener('change', async (e)=>{
+    t.name = e.target.value.trim() || 'Sans nom';
+    await idbUpdate('templates', t.id, {name:t.name});
+    await refreshTemplates();
+  });
+  root.querySelector('#btnChangeBg').addEventListener('click', ()=> root.querySelector('#changeBgFile').click());
+  root.querySelector('#changeBgFile').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    showBusy('Mise à jour du visuel…');
+    try{
+      const fmt = IG_FORMATS.free;
+      const result = (t.bgW && t.bgH) ? await resizeImageToExact(file, t.bgW, t.bgH, 0.88) : await resizeImage(file, 2000, 0.88);
+      const photoId = await storePhoto(result.blob);
+      t.bgAssetId = photoId; t.bgW = result.width; t.bgH = result.height;
+      await idbUpdate('templates', t.id, {bgAssetId:t.bgAssetId, bgW:result.width, bgH:result.height});
+      await refreshTemplates();
+      renderDesignEditor(root);
+    }catch(err){
+      console.error(err);
+      toast('Échec de la mise à jour');
+    }finally{
+      hideBusy();
+    }
+  });
+  root.querySelector('#btnAddSlot').addEventListener('click', ()=>{
+    state.design.addMode = !state.design.addMode;
+    renderDesignEditor(root);
+  });
+  renderSlotsInCanvas(root.querySelector('#tplSlots'), root.querySelector('#tplCanvas'), t, 'design');
+}
+
+/* ---------- effectif view ---------- */
+function sortedPlayers(){
+  const list = [...state.players];
+  if (state.effectif.sort==='name'){
+    list.sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+  } else {
+    list.sort((a,b)=> (a.number??999)-(b.number??999) || String(a.name).localeCompare(String(b.name)));
+  }
+  const q = state.effectif.query.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter(p=> (String(p.name)+' '+(p.position||'')).toLowerCase().includes(q));
+}
+function renderEffectifView(){
+  const root = els.viewEffectif;
+  root.innerHTML = `
+    <div class="view-toolbar">
+      <h2>Effectif</h2>
+      <button class="btn btn-accent" id="btnAddPlayer">+ Joueur</button>
+    </div>
+    ${state.players.length===0 ? '' : `
+    <div class="list-controls">
+      <input type="search" id="efSearch" class="search-input" placeholder="Rechercher un joueur ou un poste…" value="${escapeAttr(state.effectif.query)}" style="margin-bottom:0;">
+      <div class="chip-row">
+        <button type="button" class="chip ${state.effectif.sort==='number'?'chip-active':''}" data-sort="number">Tri : N°</button>
+        <button type="button" class="chip ${state.effectif.sort==='name'?'chip-active':''}" data-sort="name">Tri : Nom</button>
+      </div>
+    </div>`}
+    <div id="efListWrap"></div>
+  `;
+  root.querySelector('#btnAddPlayer')?.addEventListener('click', ()=> openPlayerForm());
+  const search = root.querySelector('#efSearch');
+  search?.addEventListener('input', ()=>{
+    state.effectif.query = search.value;
+    renderEffectifList();
+  });
+  root.querySelectorAll('[data-sort]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.effectif.sort = btn.dataset.sort;
+      renderEffectifView();
+    });
+  });
+  renderEffectifList();
+}
+async function renderEffectifList(){
+  const wrap = document.getElementById('efListWrap');
+  if (!wrap) return;
+  const list = sortedPlayers();
+  await warmPhotoCache(list.map(p=>p.photoAssetId));
+  wrap.innerHTML = state.players.length===0 ? emptyState('👥','Aucun joueur','Ajoute les joueurs de ton effectif avec leur photo, leur numéro et leur poste.','Ajouter un joueur','btnEmptyAddPlayer') :
+    list.length===0 ? `<p class="hint-banner">Aucun joueur ne correspond à « ${escapeHTML(state.effectif.query)} ».</p>` :
+    `<ul class="player-list">${list.map(playerRowHTML).join('')}</ul>`;
+  wrap.querySelector('#btnEmptyAddPlayer')?.addEventListener('click', ()=> openPlayerForm());
+  wrap.querySelectorAll('[data-edit-player]').forEach(row=>{
+    row.addEventListener('click', ()=> openPlayerForm(state.players.find(p=>p.id===row.dataset.editPlayer)));
+  });
+}
+function playerRowHTML(p){
+  const photo = photoUrl(p.photoAssetId);
+  return `
+  <li class="player-row" data-edit-player="${p.id}">
+    <div class="player-photo">${photo? `<img src="${escapeAttr(photo)}" alt="">` : '<span>👤</span>'}</div>
+    <div class="player-info">
+      <div class="player-name">${escapeHTML(p.name||'Sans nom')}</div>
+      <div class="player-pos">${escapeHTML(p.position||'')}</div>
+    </div>
+    <div class="player-number">${p.number!=null? p.number : '–'}</div>
+  </li>`;
+}
+function openPlayerForm(player){
+  const isEdit = !!player;
+  let photoAssetId = player && player.photoAssetId || null;
+  let pendingPhotoBlob = null;
+  const previewUrl = photoAssetId ? photoUrl(photoAssetId) : null;
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">${isEdit? 'Modifier le joueur':'Nouveau joueur'}</h3>
+      <div class="form-photo">
+        <button type="button" class="photo-picker" id="photoPicker">
+          <span id="photoPreviewWrap">${previewUrl? `<img id="photoPreview" src="${escapeAttr(previewUrl)}">` : `<span id="photoPreview" class="photo-placeholder">👤</span>`}</span>
+        </button>
+        <input type="file" accept="image/*" id="photoInput" hidden>
+      </div>
+      <label class="field"><span>Nom</span>
+        <input type="text" id="fName" value="${escapeAttr(player && player.name || '')}" placeholder="Jules Martin">
+      </label>
+      <div class="field-row">
+        <label class="field"><span>Numéro</span>
+          <input type="number" id="fNumber" value="${player && player.number!=null? player.number:''}" min="0" max="99" inputmode="numeric">
+        </label>
+        <label class="field"><span>Poste</span>
+          <select id="fPosition">
+            <option value="">—</option>
+            ${POSITIONS.map(pos=>`<option value="${escapeAttr(pos)}" ${player && player.position===pos?'selected':''}>${pos}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <div class="sheet-actions">
+        ${isEdit? `<button type="button" class="btn btn-danger" id="btnDelete">Supprimer</button>`:''}
+        <button type="button" class="btn btn-ghost" id="btnCancel">Annuler</button>
+        <button type="button" class="btn btn-accent" id="btnSave">Enregistrer</button>
+      </div>`;
+    body.querySelector('#photoPicker').addEventListener('click', ()=> body.querySelector('#photoInput').click());
+    body.querySelector('#photoInput').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if (!file) return;
+      const {blob} = await resizeImage(file, 800, 0.85);
+      pendingPhotoBlob = blob;
+      const url = URL.createObjectURL(blob);
+      body.querySelector('#photoPreviewWrap').innerHTML = `<img id="photoPreview" src="${url}">`;
+    });
+    body.querySelector('#btnCancel').addEventListener('click', closeSheet);
+    body.querySelector('#btnDelete')?.addEventListener('click', ()=>{
+      confirmDialog('Supprimer ce joueur ?', 'Il sera retiré des compositions existantes.', async ()=>{
+        await idbDelete('players', player.id);
+        await refreshPlayers();
+        closeSheet();
+        renderEffectifView();
+        toast('Joueur supprimé');
+      });
+    });
+    body.querySelector('#btnSave').addEventListener('click', async ()=>{
+      const name = body.querySelector('#fName').value.trim();
+      if (!name){ toast('Le nom est requis'); return; }
+      const numberVal = body.querySelector('#fNumber').value;
+      const position = body.querySelector('#fPosition').value;
+      const btn = body.querySelector('#btnSave');
+      btn.disabled = true; btn.textContent = 'Enregistrement…';
+      try{
+        if (pendingPhotoBlob){
+          photoAssetId = await storePhoto(pendingPhotoBlob);
+        }
+        const data = { name, number: numberVal===''?null:Number(numberVal), position: position||null, photoAssetId: photoAssetId||null };
+        if (isEdit){ await idbUpdate('players', player.id, data); }
+        else { data.id = newId(); data.createdAt = new Date().toISOString(); await idbPut('players', data); }
+        await refreshPlayers();
+        closeSheet();
+        renderEffectifView();
+        toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
+      }catch(err){
+        console.error(err);
+        toast('Erreur, réessaie');
+        btn.disabled = false; btn.textContent = 'Enregistrer';
+      }
+    });
+  });
+}
+
+/* ---------- compo / post view ---------- */
+async function renderCompoView(){
+  const root = els.viewCompo;
+  if (state.compo.subview==='editor' && state.compo.compo){
+    renderCompoEditor(root);
+    return;
+  }
+  const list = [...state.compos].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  await warmPhotoCache(list.map(c=>{
+    const tpl = state.templates.find(t=>t.id===c.templateId);
+    return tpl ? tpl.bgAssetId : null;
+  }));
+  root.innerHTML = `
+    <div class="view-toolbar">
+      <h2>Compositions</h2>
+      <button class="btn btn-accent" id="btnNewCompo">+ Nouvelle</button>
+    </div>
+    ${state.templates.length===0? `<p class="hint-banner">Crée d’abord un template dans l’onglet Design.</p>` : ''}
+    ${list.length===0 ? emptyState('🏉','Aucune composition','Choisis un template et assigne tes joueurs pour créer ta première publication.','Nouvelle composition','btnEmptyNewCompo', state.templates.length===0) : `
+    <ul class="compo-list">${list.map(compoRowHTML).join('')}</ul>`}
+  `;
+  const openNewCompoFlow = ()=>{
+    if (state.templates.length===0){ toast('Crée un template d’abord'); return; }
+    openNewCompoSheet();
+  };
+  root.querySelector('#btnNewCompo')?.addEventListener('click', openNewCompoFlow);
+  root.querySelector('#btnEmptyNewCompo')?.addEventListener('click', openNewCompoFlow);
+  root.querySelectorAll('[data-open-compo]').forEach(row=>{
+    row.addEventListener('click', ()=> openCompoEditor(row.dataset.openCompo));
+  });
+  root.querySelectorAll('[data-dup-compo]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); duplicateCompo(btn.dataset.dupCompo); });
+  });
+  root.querySelectorAll('[data-del-compo]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.delCompo;
+      confirmDialog('Supprimer cette composition ?', '', async ()=>{
+        await idbDelete('posts', id);
+        await refreshCompos();
+        closeSheet();
+        renderCompoView();
+        toast('Composition supprimée');
+      });
+    });
+  });
+}
+function compoRowHTML(c){
+  const tpl = state.templates.find(t=>t.id===c.templateId);
+  const filled = Object.values(c.assignments||{}).filter(Boolean).length;
+  const total = tpl ? (tpl.slots||[]).length : 0;
+  return `
+  <li class="compo-row" data-open-compo="${c.id}">
+    <div class="compo-thumb">${tpl && tpl.bgAssetId? `<img src="${escapeAttr(photoUrl(tpl.bgAssetId))}" alt="">` : '🏉'}</div>
+    <div class="compo-info">
+      <div class="compo-name">${escapeHTML(c.name||'Sans nom')}${c.opponent? ' vs '+escapeHTML(c.opponent):''}</div>
+      <div class="compo-meta">${filled}/${total} joueurs${tpl? '':' · template supprimé'}</div>
+    </div>
+    <button type="button" class="btn-icon" data-dup-compo="${c.id}" title="Dupliquer">⧉</button>
+    <button type="button" class="btn-icon" data-del-compo="${c.id}" title="Supprimer">🗑</button>
+  </li>`;
+}
+async function duplicateCompo(id){
+  const c = state.compos.find(x=>x.id===id);
+  if (!c) return;
+  const data = {
+    id: newId(),
+    name: (c.name||'Composition')+' (copie)',
+    opponent: c.opponent||null,
+    templateId: c.templateId,
+    assignments: {...(c.assignments||{})},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await idbPut('posts', data);
+  await refreshCompos();
+  renderCompoView();
+  toast('Composition dupliquée');
+}
+function openNewCompoSheet(){
+  openSheet((body)=>{
+    const sorted = [...state.templates].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+    body.innerHTML = `
+      <h3 class="sheet-title">Nouvelle composition</h3>
+      <label class="field"><span>Nom</span>
+        <input type="text" id="cName" value="${escapeAttr('Compo du '+formatDateShort(new Date()))}">
+      </label>
+      <label class="field"><span>Adversaire (optionnel)</span>
+        <input type="text" id="cOpponent" placeholder="Stade Toulousain">
+      </label>
+      <label class="field"><span>Template</span>
+        <select id="cTemplate">
+          ${sorted.map(t=>`<option value="${t.id}">${escapeHTML(t.name)} — ${CATEGORY_LABELS[t.category]||'Compo'} (${(t.slots||[]).length} emplacements)</option>`).join('')}
+        </select>
+      </label>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="cCancel">Annuler</button>
+        <button type="button" class="btn btn-accent" id="cCreate">Créer</button>
+      </div>`;
+    body.querySelector('#cCancel').addEventListener('click', closeSheet);
+    body.querySelector('#cCreate').addEventListener('click', async ()=>{
+      const name = body.querySelector('#cName').value.trim() || 'Sans nom';
+      const opponent = body.querySelector('#cOpponent').value.trim();
+      const templateId = body.querySelector('#cTemplate').value;
+      body.querySelector('#cCreate').disabled = true;
+      const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+      await idbPut('posts', data);
+      await refreshCompos();
+      closeSheet();
+      openCompoEditor(data.id);
+    });
+  });
+}
+function openCompoEditor(id){
+  const c = state.compos.find(x=>x.id===id);
+  if (!c) return;
+  const tpl = state.templates.find(t=>t.id===c.templateId);
+  if (!tpl){ toast('Le template de cette composition a été supprimé'); return; }
+  state.compo.subview = 'editor';
+  state.compo.compoId = id;
+  state.compo.compo = JSON.parse(JSON.stringify(c));
+  state.compo.compo.assignments = state.compo.compo.assignments || {};
+  state.compo.template = tpl;
+  render();
+}
+async function renderCompoEditor(root){
+  const c = state.compo.compo;
+  const tpl = state.compo.template;
+  const photoIds = [tpl.bgAssetId, ...slotAssignmentPhotoIds(tpl, c.assignments||{})];
+  await warmPhotoCache(photoIds);
+  root.innerHTML = `
+    <div class="editor-toolbar">
+      <button class="btn-icon" id="btnBack">←</button>
+      <input type="text" id="compoName" class="editor-title-input" value="${escapeAttr(c.name||'')}">
+      <button class="btn-icon" id="btnCaptain" title="Capitaine">©</button>
+      <button class="btn-icon" id="btnCaptions" title="Légendes Instagram">📝</button>
+      <button class="btn-icon" id="btnClearCompo" title="Vider">↺</button>
+    </div>
+    <div class="canvas-wrap">
+      <div class="tpl-canvas" id="compoCanvas" style="aspect-ratio:${tpl.bgW||1}/${tpl.bgH||1}">
+        <img class="tpl-bg" src="${tpl.bgAssetId? escapeAttr(photoUrl(tpl.bgAssetId)):''}" alt="">
+        <div class="tpl-slots" id="compoSlots"></div>
+      </div>
+    </div>
+    <div class="editor-bottom-actions">
+      <button class="btn btn-secondary" id="btnSaveCompo">Enregistrer</button>
+      <button class="btn btn-accent" id="btnExportCompo">Exporter l’image</button>
+    </div>
+  `;
+  root.querySelector('#btnBack').addEventListener('click', async ()=>{
+    await saveCompo(false);
+    state.compo.subview = 'list';
+    state.compo.compo = null;
+    state.compo.template = null;
+    render();
+  });
+  root.querySelector('#compoName').addEventListener('change', (e)=>{
+    c.name = e.target.value.trim() || 'Sans nom';
+  });
+  root.querySelector('#btnClearCompo').addEventListener('click', ()=>{
+    confirmDialog('Vider cette composition ?', 'Tous les emplacements seront libérés.', ()=>{
+      c.assignments = {};
+      rerenderCurrentCanvas();
+      closeSheet();
+    });
+  });
+  root.querySelector('#btnCaptain').addEventListener('click', ()=> openCaptainSheet());
+  root.querySelector('#btnCaptions').addEventListener('click', ()=> openCaptionSheet());
+  root.querySelector('#btnSaveCompo').addEventListener('click', ()=> saveCompo(true));
+  root.querySelector('#btnExportCompo').addEventListener('click', exportCompo);
+
+  renderSlotsInCanvas(root.querySelector('#compoSlots'), root.querySelector('#compoCanvas'), tpl, 'compo', {
+    assignments: c.assignments,
+    captainSlotId: c.captainSlotId,
+    onSlotTap: onCompoSlotTap,
+  });
+}
+function openCaptainSheet(){
+  const c = state.compo.compo;
+  const tpl = state.compo.template;
+  const filledPhotoSlots = (tpl.slots||[]).filter(s=> (s.kind||'photo')==='photo' && c.assignments[s.id]);
+  openSheet((body)=>{
+    if (filledPhotoSlots.length===0){
+      body.innerHTML = `<h3 class="sheet-title">Capitaine</h3><p class="sheet-msg">Assigne d’abord des joueurs pour pouvoir choisir un capitaine.</p><div class="sheet-actions"><button type="button" class="btn btn-ghost btn-block" id="capOk">OK</button></div>`;
+      body.querySelector('#capOk').addEventListener('click', closeSheet);
+      return;
+    }
+    body.innerHTML = `
+      <h3 class="sheet-title">Qui est capitaine ?</h3>
+      ${c.captainSlotId? `<button type="button" class="btn btn-ghost btn-block" id="capNone" style="margin-bottom:12px;">Aucun capitaine</button>`:''}
+      <ul class="picker-list">
+        ${filledPhotoSlots.map(s=>{
+          const p = state.players.find(pp=>pp.id===c.assignments[s.id]);
+          if (!p) return '';
+          return pickerRowHTML(p, s.id===c.captainSlotId, false).replace('data-pick-player', 'data-pick-captain-slot="'+escapeAttr(s.id)+'" data-pick-player');
+        }).join('')}
+      </ul>`;
+    body.querySelector('#capNone')?.addEventListener('click', ()=>{
+      c.captainSlotId = null;
+      rerenderCurrentCanvas();
+      closeSheet();
+    });
+    body.querySelectorAll('[data-pick-captain-slot]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        c.captainSlotId = row.dataset.pickCaptainSlot;
+        rerenderCurrentCanvas();
+        closeSheet();
+      });
+    });
+  });
+}
+async function saveCompo(showToast){
+  const c = state.compo.compo;
+  if (!c) return;
+  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, updatedAt: new Date().toISOString() });
+  await refreshCompos();
+  if (showToast) toast('Composition enregistrée');
+}
+function onCompoSlotTap(slotId){
+  const slot = (state.compo.template.slots||[]).find(s=>s.id===slotId);
+  const kind = slot ? (slot.kind||'photo') : 'photo';
+  if (kind==='logo') openLogoPickerSheet(slotId);
+  else if (kind==='text') openTextValueSheet(slotId);
+  else openPlayerPickerSheet(slotId);
+}
+function openTextValueSheet(slotId){
+  const c = state.compo.compo;
+  const current = c.assignments[slotId] || '';
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Texte libre</h3>
+      <label class="field"><span>Contenu (score, date, finishers…)</span>
+        <textarea id="txtVal" rows="4">${escapeHTML(current)}</textarea>
+      </label>
+      <div class="sheet-actions">
+        ${current? `<button type="button" class="btn btn-ghost" id="txtClear">Vider</button>`:''}
+        <button type="button" class="btn btn-accent btn-block" id="txtSave">OK</button>
+      </div>`;
+    body.querySelector('#txtClear')?.addEventListener('click', ()=>{
+      delete c.assignments[slotId];
+      rerenderCurrentCanvas();
+      closeSheet();
+    });
+    body.querySelector('#txtSave').addEventListener('click', ()=>{
+      const val = body.querySelector('#txtVal').value.trim();
+      if (val) c.assignments[slotId] = val; else delete c.assignments[slotId];
+      rerenderCurrentCanvas();
+      closeSheet();
+    });
+  });
+}
+async function openLogoPickerSheet(slotId){
+  const c = state.compo.compo;
+  const currentLogoId = c.assignments[slotId];
+  const logos = await idbGetAll('logos');
+  logos.sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  await warmPhotoCache(logos.map(l=>l.photoAssetId));
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Logo d’équipe</h3>
+      ${currentLogoId? `<button type="button" class="btn btn-ghost btn-block" id="logoClear" style="margin-bottom:12px;">Retirer le logo</button>`:''}
+      <button type="button" class="btn btn-accent btn-block" id="logoNew" style="margin-bottom:14px;">+ Importer un nouveau logo</button>
+      <input type="file" accept="image/*" id="logoFile" hidden>
+      ${logos.length? `<ul class="picker-list">${logos.map(l=>`
+        <li class="picker-row ${l.photoAssetId===currentLogoId?'is-current':''}" data-pick-logo="${l.photoAssetId}">
+          <div class="player-photo player-photo-sm">${photoUrl(l.photoAssetId)? `<img src="${escapeAttr(photoUrl(l.photoAssetId))}" alt="">`:'🛡️'}</div>
+          <div class="player-info"><div class="player-name">${escapeHTML(l.name||'Logo')}</div></div>
+        </li>`).join('')}</ul>` : `<p class="sheet-msg">Aucun logo importé pour l’instant.</p>`}
+    `;
+    body.querySelector('#logoClear')?.addEventListener('click', ()=>{
+      delete c.assignments[slotId];
+      rerenderCurrentCanvas();
+      closeSheet();
+    });
+    body.querySelectorAll('[data-pick-logo]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        c.assignments[slotId] = row.dataset.pickLogo;
+        rerenderCurrentCanvas();
+        closeSheet();
+      });
+    });
+    body.querySelector('#logoNew').addEventListener('click', ()=> body.querySelector('#logoFile').click());
+    body.querySelector('#logoFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      closeSheet();
+      showBusy('Import du logo…');
+      try{
+        const {blob} = await resizeImage(file, 600, 0.9);
+        const photoId = await storePhoto(blob);
+        const name = (file.name||'Logo').replace(/\.[a-z0-9]+$/i,'').slice(0,40);
+        await idbPut('logos', { id:newId(), name, photoAssetId:photoId, createdAt:new Date().toISOString() });
+        c.assignments[slotId] = photoId;
+        rerenderCurrentCanvas();
+        toast('Logo ajouté');
+      }catch(err){
+        console.error(err);
+        toast('Import du logo impossible');
+      }finally{
+        hideBusy();
+      }
+    });
+  });
+}
+async function openPlayerPickerSheet(slotId){
+  const c = state.compo.compo;
+  const tpl = state.compo.template;
+  const slot = (tpl.slots||[]).find(s=>s.id===slotId);
+  const currentPlayerId = c.assignments[slotId];
+  const usedElsewhere = new Set(Object.entries(c.assignments||{}).filter(([sid,pid])=> sid!==slotId && pid).map(([,pid])=>pid));
+  const rosterPositions = [...new Set(state.players.map(p=>p.position).filter(Boolean))];
+  let activeRole = (slot && slot.role && rosterPositions.includes(slot.role)) ? slot.role : '';
+
+  await warmPhotoCache(state.players.map(p=>p.photoAssetId));
+
+  openSheet((body)=>{
+    function draw(){
+      const sorted = [...state.players].sort((a,b)=> (a.number??999)-(b.number??999) || String(a.name).localeCompare(String(b.name)));
+      body.innerHTML = `
+        <h3 class="sheet-title">Choisir un joueur${slot && slot.role? ` <span style="color:var(--text-muted);font-weight:400;font-size:.75em;">· ${escapeHTML(slot.role)} attendu</span>`:''}</h3>
+        <input type="search" id="pSearch" class="search-input" placeholder="Rechercher…">
+        ${rosterPositions.length>1 ? `<div class="chip-row" id="pRoleChips">
+          <button type="button" class="chip ${activeRole===''?'chip-active':''}" data-role="">Tous</button>
+          ${rosterPositions.map(pos=>`<button type="button" class="chip ${activeRole===pos?'chip-active':''}" data-role="${escapeAttr(pos)}">${escapeHTML(pos)}</button>`).join('')}
+        </div>` : ''}
+        ${currentPlayerId? `<button type="button" class="btn btn-ghost btn-block" id="pClear" style="margin-bottom:12px;">Libérer cet emplacement</button>`:''}
+        ${sorted.length===0? `<p class="sheet-msg">Aucun joueur dans l’effectif. Ajoute-en depuis l’onglet Effectif.</p>` : `<ul class="picker-list" id="pickerList">${sorted.map(p=>pickerRowHTML(p, p.id===currentPlayerId, usedElsewhere.has(p.id))).join('')}</ul>`}
+      `;
+      body.querySelector('#pClear')?.addEventListener('click', ()=>{
+        delete c.assignments[slotId];
+        rerenderCurrentCanvas();
+        closeSheet();
+      });
+      body.querySelectorAll('[data-pick-player]').forEach(row=>{
+        row.addEventListener('click', ()=>{
+          c.assignments[slotId] = row.dataset.pickPlayer;
+          rerenderCurrentCanvas();
+          closeSheet();
+        });
+      });
+      body.querySelectorAll('[data-role]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{ activeRole = chip.dataset.role; draw(); });
+      });
+      applyFilter();
+      const search = body.querySelector('#pSearch');
+      search && search.addEventListener('input', applyFilter);
+      function applyFilter(){
+        const q = (body.querySelector('#pSearch')?.value||'').trim().toLowerCase();
+        body.querySelectorAll('.picker-row').forEach(row=>{
+          const matchesText = row.dataset.searchText.includes(q);
+          const matchesRole = !activeRole || row.dataset.position===activeRole;
+          row.hidden = !(matchesText && matchesRole);
+        });
+      }
+    }
+    draw();
+  });
+}
+function pickerRowHTML(p, isCurrent, isUsedElsewhere){
+  const photo = photoUrl(p.photoAssetId);
+  const searchText = (String(p.name)+' '+(p.position||'')).toLowerCase();
+  return `
+  <li class="picker-row ${isCurrent?'is-current':''}" data-pick-player="${p.id}" data-search-text="${escapeAttr(searchText)}" data-position="${escapeAttr(p.position||'')}">
+    <div class="player-photo player-photo-sm">${photo? `<img src="${escapeAttr(photo)}" alt="">` : '<span>👤</span>'}</div>
+    <div class="player-info">
+      <div class="player-name">${escapeHTML(p.name)}${isUsedElsewhere? `<span class="picker-tag">déjà placé</span>`:''}</div>
+      <div class="player-pos">${escapeHTML(p.position||'')}</div>
+    </div>
+    <div class="player-number">${p.number!=null? p.number : '–'}</div>
+  </li>`;
+}
+
+/* ---------- captions ---------- */
+function buildCaptions(compo, tpl){
+  const club = (state.settings.club||'').trim();
+  const opponent = (compo.opponent||'').trim();
+  const lineup = (tpl.slots||[])
+    .filter(slot => (slot.kind||'photo')==='photo')
+    .map(slot => state.players.find(p=> p.id === compo.assignments[slot.id]))
+    .filter(Boolean)
+    .map(p=> (p.number!=null? p.number+'. ':'') + p.name);
+
+  const clubTag = club ? '#'+club.replace(/[^\p{L}\p{N}]/gu,'') : '';
+  const hashtags = ['#Rugby', clubTag, '#Compo', '#TeamSpirit'].filter(Boolean).join(' ');
+  const vs = opponent ? ('face à '+opponent) : 'ce week-end';
+  const clubLine = club || 'Notre équipe';
+
+  const officielle =
+`🏉 COMPOSITION D'ÉQUIPE${opponent? ' — vs '+opponent.toUpperCase():''}
+${compo.name||''}
+
+${lineup.length? lineup.join('\n') : 'XV disponible sur le visuel ci-dessus.'}
+
+Allez ${club||'les Bleus'} ! 💪
+${hashtags}`;
+
+  const dynamique =
+`🔥 LA COMPO EST TOMBÉE !
+${clubLine} affronte ${opponent||'son adversaire'} ${opponent? '':'ce week-end'} !
+On compte sur votre soutien pour venir nous pousser 📣
+${hashtags}`;
+
+  const chaleureuse =
+`Une équipe, un club, une passion 🏉❤️
+Voici le XV qui défendra nos couleurs ${vs} !
+Venez nombreux les encourager 👏
+${hashtags}`;
+
+  return [
+    { label:'Officielle', text: officielle },
+    { label:'Dynamique', text: dynamique },
+    { label:'Chaleureuse', text: chaleureuse },
+  ];
+}
+async function copyCaption(text, feedbackEl){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('Légende copiée');
+  }catch(err){
+    if (feedbackEl){ feedbackEl.select(); feedbackEl.setSelectionRange(0, text.length); }
+    toast('Copie auto indisponible : texte sélectionné, copie-le manuellement');
+  }
+}
+function openCaptionSheet(){
+  const c = state.compo.compo;
+  const tpl = state.compo.template;
+  if (!c || !tpl) return;
+  openSheet((body)=>{
+    function draw(){
+      const captions = buildCaptions(c, tpl);
+      body.innerHTML = `
+        <h3 class="sheet-title">Légendes pour Instagram</h3>
+        <label class="field"><span>Adversaire (optionnel)</span>
+          <input type="text" id="capOpponent" value="${escapeAttr(c.opponent||'')}" placeholder="Stade Toulousain">
+        </label>
+        <p class="sheet-msg" style="margin-top:-4px;">Club : ${state.settings.club? escapeHTML(state.settings.club) : 'non défini'} — <a href="#" id="capEditClub" style="color:var(--accent);">modifier</a></p>
+        ${captions.map((cap,i)=>`
+          <div class="field" style="gap:6px;">
+            <span>${escapeHTML(cap.label)}</span>
+            <textarea readonly rows="6" id="capText${i}" style="font-family:var(--font-body);font-size:.88rem;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:.6em .7em;resize:vertical;">${escapeHTML(cap.text)}</textarea>
+            <button type="button" class="btn btn-secondary btn-block" data-copy="${i}">Copier cette légende</button>
+          </div>
+        `).join('')}
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-ghost btn-block" id="capClose">Fermer</button>
+        </div>
+      `;
+      body.querySelector('#capOpponent').addEventListener('change', async (e)=>{
+        c.opponent = e.target.value.trim() || null;
+        await idbUpdate('posts', c.id, {opponent:c.opponent});
+        draw();
+      });
+      body.querySelectorAll('[data-copy]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const ta = body.querySelector('#capText'+btn.dataset.copy);
+          copyCaption(ta.value, ta);
+        });
+      });
+      body.querySelector('#capEditClub').addEventListener('click', (e)=>{
+        e.preventDefault();
+        openClubEditSheet(()=> openCaptionSheet());
+      });
+      body.querySelector('#capClose').addEventListener('click', closeSheet);
+    }
+    draw();
+  });
+}
+function openClubEditSheet(onDone){
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Nom du club</h3>
+      <label class="field"><span>Utilisé dans les légendes générées</span>
+        <input type="text" id="clubName" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
+      </label>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="clubCancel">Annuler</button>
+        <button type="button" class="btn btn-accent" id="clubSave">Enregistrer</button>
+      </div>`;
+    body.querySelector('#clubCancel').addEventListener('click', ()=>{ closeSheet(); onDone && onDone(); });
+    body.querySelector('#clubSave').addEventListener('click', async ()=>{
+      await saveClub(body.querySelector('#clubName').value.trim());
+      closeSheet();
+      onDone && onDone();
+    });
+  });
+}
+
+/* ---------- export ---------- */
+async function renderCompoCanvasBlob(tpl, c){
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const canvas = document.createElement('canvas');
+  canvas.width = tpl.bgW; canvas.height = tpl.bgH;
+  const ctx = canvas.getContext('2d');
+  const bgBitmap = await loadBitmapForPhoto(tpl.bgAssetId);
+  if (bgBitmap) ctx.drawImage(bgBitmap, 0, 0, tpl.bgW, tpl.bgH);
+
+  for (const slot of (tpl.slots||[])){
+    const kind = slot.kind || 'photo';
+    const val = c.assignments[slot.id];
+    if (!val) continue;
+
+    if (kind==='text'){
+      const cx = slot.x*tpl.bgW, cy = slot.y*tpl.bgH;
+      const boxW = slot.w*tpl.bgW, boxH = (slot.h!=null?slot.h:0.08)*tpl.bgH;
+      const fontPx = (slot.fontSize!=null?slot.fontSize:0.05) * tpl.bgW;
+      ctx.save();
+      ctx.font = `700 ${Math.round(fontPx)}px Oswald, "Arial Narrow", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const lines = wrapText(ctx, String(val), boxW);
+      const lineH = fontPx * 1.15;
+      let ty = cy - (lines.length-1)*lineH/2;
+      for (const line of lines){
+        strokeFillText(ctx, line, cx, ty, fontPx, 'Oswald, "Arial Narrow", sans-serif', 700, slot.color||'#ffffff', 0.16);
+        ty += lineH;
+      }
+      ctx.restore();
+      continue;
+    }
+
+    const cx = slot.x*tpl.bgW, cy = slot.y*tpl.bgH, d = slot.w*tpl.bgW, r = d/2;
+
+    if (kind==='logo'){
+      const bitmap = await loadBitmapForPhoto(val);
+      if (bitmap){
+        ctx.save();
+        pathForSlot(ctx, slot, cx, cy, r, d);
+        ctx.clip();
+        drawCover(ctx, bitmap, cx-r, cy-r, d, d);
+        ctx.restore();
+      }
+      ctx.save();
+      pathForSlot(ctx, slot, cx, cy, r, d);
+      ctx.lineWidth = Math.max(2, d*0.03);
+      ctx.strokeStyle = '#000000';
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
+    // kind === 'photo'
+    const player = state.players.find(p=>p.id===val);
+    if (!player) continue;
+
+    if (player.photoAssetId){
+      const bitmap = await loadBitmapForPhoto(player.photoAssetId);
+      if (bitmap){
+        ctx.save();
+        pathForSlot(ctx, slot, cx, cy, r, d);
+        ctx.clip();
+        drawCover(ctx, bitmap, cx-r, cy-r, d, d);
+        ctx.restore();
+      }
+    }
+    ctx.save();
+    pathForSlot(ctx, slot, cx, cy, r, d);
+    ctx.lineWidth = Math.max(2, d*0.035);
+    ctx.strokeStyle = '#000000';
+    ctx.stroke();
+    ctx.restore();
+
+    if (slot.showNumber && player.number!=null){
+      const fontPx = d*0.62;
+      strokeFillText(ctx, String(player.number), cx, cy + r*0.86, fontPx, 'Oswald, "Arial Narrow", sans-serif', 700, '#ffffff', 0.16);
+    }
+    if (slot.showName && player.name){
+      const text = String(player.name).toUpperCase();
+      const fontPx = d*0.155;
+      const ty = cy + r + d*0.08 + fontPx*0.5;
+      strokeFillText(ctx, text, cx, ty, fontPx, '"Work Sans", sans-serif', 700, '#ffffff', 0.18);
+    }
+    if (c.captainSlotId===slot.id){
+      const br = d*0.135;
+      const bx = cx + r*0.62, by = cy + r*0.28;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(bx,by,br,0,Math.PI*2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.lineWidth = Math.max(1.5, br*0.16); ctx.strokeStyle = '#000000'; ctx.stroke();
+      ctx.fillStyle = '#000000';
+      ctx.font = `700 ${Math.round(br*1.3)}px Oswald, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('C', bx, by+br*0.06);
+      ctx.restore();
+    }
+  }
+
+  return await new Promise(res=> canvas.toBlob(res, 'image/png'));
+}
+function wrapText(ctx, text, maxWidth){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for (const word of words){
+    const test = line ? line+' '+word : word;
+    if (ctx.measureText(test).width > maxWidth && line){
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+async function exportCompo(){
+  const tpl = state.compo.template;
+  const c = state.compo.compo;
+  if (!tpl){ toast('Export indisponible'); return; }
+  const filled = Object.values(c.assignments||{}).filter(Boolean).length;
+  if (filled===0){ toast('Assigne au moins un joueur avant d’exporter'); return; }
+  showBusy('Génération de l’image…');
+  try{
+    const blob = await renderCompoCanvasBlob(tpl, c);
+    hideBusy();
+    openExportReadySheet(blob, c);
+  }catch(err){
+    console.error(err);
+    toast('Échec de la génération');
+    hideBusy();
+  }
+}
+
+function openExportReadySheet(blob, compo){
+  let canShareFiles = false;
+  try{
+    canShareFiles = !!(navigator.canShare && navigator.canShare({files:[new File([blob],'compo.png',{type:'image/png'})]}));
+  }catch(err){ canShareFiles = false; }
+
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Image prête</h3>
+      <p class="sheet-msg">Enregistre-la sur ton téléphone, puis publie-la sur Instagram — ou partage-la directement si ton appareil le permet.</p>
+      <div class="sheet-actions" style="flex-direction:column;">
+        ${canShareFiles? `<button type="button" class="btn btn-accent btn-block" id="btnShareImg">Partager… (Instagram, etc.)</button>`:''}
+        <button type="button" class="btn ${canShareFiles?'btn-secondary':'btn-accent'} btn-block" id="btnSaveImg">Enregistrer sur le téléphone</button>
+      </div>
+    `;
+    body.querySelector('#btnShareImg')?.addEventListener('click', async ()=>{
+      try{
+        const file = new File([blob], sanitizeFilename(compo.name)+'.png', {type:'image/png'});
+        await navigator.share({ files:[file], title: compo.name||'Compo' });
+        closeSheet();
+        openCaptionSheet();
+      }catch(err){
+        if (err && err.name==='AbortError') return;
+        toast('Partage impossible, essaie l’enregistrement');
+      }
+    });
+    body.querySelector('#btnSaveImg').addEventListener('click', ()=>{
+      downloadBlob(blob, sanitizeFilename(compo.name)+'.png');
+      toast('Image enregistrée');
+      closeSheet();
+      openCaptionSheet();
+    });
+  });
+}
+
+/* ---------- export / import all data (multi-device & sharing with a colleague) ---------- */
+function blobToDataURL(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+async function exportAllData(){
+  showBusy('Préparation de l’export…');
+  try{
+    const [players, templates, posts, settings] = await Promise.all([
+      idbGetAll('players'), idbGetAll('templates'), idbGetAll('posts'), idbGet('settings','app'),
+    ]);
+    const photoIds = new Set();
+    players.forEach(p=> p.photoAssetId && photoIds.add(p.photoAssetId));
+    templates.forEach(t=> t.bgAssetId && photoIds.add(t.bgAssetId));
+    const photos = {};
+    for (const id of photoIds){
+      const blob = await getPhotoBlobById(id);
+      if (blob) photos[id] = await blobToDataURL(blob);
+    }
+    const bundle = { app:'compo-xv', version:1, exportedAt:new Date().toISOString(), players, templates, posts, settings: settings||null, photos };
+    const blob = new Blob([JSON.stringify(bundle)], {type:'application/json'});
+    const filename = 'compo-xv-'+formatDateShort(new Date()).replace('/','-')+'.json';
+    hideBusy();
+    openExportDataReadySheet(blob, filename);
+  }catch(err){
+    console.error(err);
+    toast('Échec de l’export');
+    hideBusy();
+  }
+}
+function openExportDataReadySheet(blob, filename){
+  let canShareFiles = false;
+  try{
+    canShareFiles = !!(navigator.canShare && navigator.canShare({files:[new File([blob],'x.json',{type:'application/json'})]}));
+  }catch(err){ canShareFiles = false; }
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Fichier de données prêt</h3>
+      <p class="sheet-msg">Envoie-le à ton collègue (WhatsApp, email, Bluetooth…) — il l’ouvre depuis Réglages → Importer sur sa propre installation de l’app, ou enregistre-le comme sauvegarde.</p>
+      <div class="sheet-actions" style="flex-direction:column;">
+        ${canShareFiles? `<button type="button" class="btn btn-accent btn-block" id="btnShareData">Partager le fichier…</button>`:''}
+        <button type="button" class="btn ${canShareFiles?'btn-secondary':'btn-accent'} btn-block" id="btnSaveData">Enregistrer sur le téléphone</button>
+      </div>`;
+    body.querySelector('#btnShareData')?.addEventListener('click', async ()=>{
+      try{
+        const file = new File([blob], filename, {type:'application/json'});
+        await navigator.share({ files:[file], title:'Compo XV — données' });
+        closeSheet();
+      }catch(err){
+        if (err && err.name==='AbortError') return;
+        toast('Partage impossible, essaie l’enregistrement');
+      }
+    });
+    body.querySelector('#btnSaveData').addEventListener('click', ()=>{
+      downloadBlob(blob, filename);
+      toast('Fichier enregistré');
+      closeSheet();
+    });
+  });
+}
+async function importAllData(file){
+  showBusy('Import en cours…');
+  try{
+    const text = await file.text();
+    const bundle = JSON.parse(text);
+    if (!bundle || bundle.app!=='compo-xv') throw new Error('invalid file');
+    for (const [id, dataUrl] of Object.entries(bundle.photos||{})){
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await idbPut('photos', {id, blob});
+    }
+    for (const p of bundle.players||[]) await idbPut('players', p);
+    for (const t of bundle.templates||[]) await idbPut('templates', t);
+    for (const po of bundle.posts||[]) await idbPut('posts', po);
+    if (bundle.settings) await idbPut('settings', bundle.settings);
+    photoUrlCache.clear();
+    await loadAll();
+    render();
+    toast('Import terminé');
+  }catch(err){
+    console.error(err);
+    toast('Fichier invalide ou import impossible');
+  }finally{
+    hideBusy();
+  }
+}
+
+/* ---------- settings sheet ---------- */
+function openSettingsSheet(){
+  openSheet((body)=>{
+    body.innerHTML = `
+      <h3 class="sheet-title">Réglages</h3>
+      <label class="field"><span>Nom du club</span>
+        <input type="text" id="stClub" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
+      </label>
+      ${deferredInstallPrompt? `<button type="button" class="btn btn-accent btn-block" id="stInstall" style="margin-bottom:14px;">Installer l’application</button>` : ''}
+      <p class="sheet-msg" style="margin-top:0;">Compo XV fonctionne 100% hors-ligne : effectif, templates et compositions sont stockés uniquement sur cet appareil, sans compte ni serveur.</p>
+      <div class="sheet-actions" style="flex-direction:column;">
+        <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter mes données (partage / sauvegarde)</button>
+        <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer des données</button>
+      </div>
+      <input type="file" accept="application/json" id="stImportFile" hidden>
+      <p class="sheet-msg">Pour partager l’effectif et les templates avec un collègue, ou les retrouver sur un autre appareil : exporte un fichier ici et fais-le lui parvenir (message, email, clé USB…) — il l’importe ensuite dans sa propre installation de l’app. Ce n’est pas une synchronisation automatique : après import, chacun a sa propre copie.</p>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost btn-block" id="stClose">Fermer</button>
+      </div>
+    `;
+    body.querySelector('#stClub').addEventListener('change', (e)=> saveClub(e.target.value.trim()));
+    body.querySelector('#stInstall')?.addEventListener('click', async ()=>{
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      closeSheet();
+    });
+    body.querySelector('#stExport').addEventListener('click', exportAllData);
+    body.querySelector('#stImport').addEventListener('click', ()=> body.querySelector('#stImportFile').click());
+    body.querySelector('#stImportFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      closeSheet();
+      await importAllData(file);
+    });
+    body.querySelector('#stClose').addEventListener('click', closeSheet);
+  });
+}
+
+/* ---------- online / offline ---------- */
+function updateOnlineStatus(){
+  els.offlinePill.classList.toggle('is-visible', !navigator.onLine);
+}
+
+/* ---------- init ---------- */
+async function init(){
+  bindTabbar();
+  els.sheetOverlay.addEventListener('click', (e)=>{ if (e.target===els.sheetOverlay) closeSheet(); });
+  document.getElementById('btnSettings').addEventListener('click', openSettingsSheet);
+
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  updateOnlineStatus();
+
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(err=> console.error('SW registration failed', err));
+  }
+
+  try{
+    await openDB();
+    await loadAll();
+  }catch(err){
+    console.error(err);
+    els.loadingText.textContent = 'Impossible d’accéder au stockage local sur cet appareil. Vérifie que la navigation privée / le blocage des cookies n’est pas activé, puis recharge la page.';
+    return;
+  }
+  els.loading.hidden = true;
+  els.app.hidden = false;
+  switchView('compo');
+}
+
+init();
+</script>
+
+</body>
+</html>
