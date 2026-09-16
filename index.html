@@ -85,6 +85,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .btn[disabled]{opacity:.5;}
 .btn-icon{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:1.05rem;display:flex;align-items:center;justify-content:center;color:var(--text);flex:0 0 auto;}
 .btn-icon-off{opacity:.4;}
+.btn-icon-active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
 
 .player-list,.compo-list{list-style:none;margin:0;padding:0 16px;display:flex;flex-direction:column;gap:10px;}
 .player-row,.compo-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;box-shadow:var(--shadow);}
@@ -395,8 +396,8 @@ function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name
 function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, position:r.position, photoAssetId:r.photo_asset_id, photos:r.photos||[], createdAt:r.created_at }; }
 function templateToRow(t){ return { id:t.id, group_id:currentGroup.id, name:t.name, category:t.category, bg_asset_id:t.bgAssetId, bg_w:t.bgW, bg_h:t.bgH, slots:t.slots, created_at:t.createdAt }; }
 function rowToTemplate(r){ return { id:r.id, name:r.name, category:r.category, bgAssetId:r.bg_asset_id, bgW:r.bg_w, bgH:r.bg_h, slots:r.slots||[], createdAt:r.created_at }; }
-function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, photo_choices:p.photoChoices||{}, created_at:p.createdAt, updated_at:p.updatedAt }; }
-function rowToPost(r){ return { id:r.id, name:r.name, opponent:r.opponent, templateId:r.template_id, assignments:r.assignments||{}, captainSlotId:r.captain_slot_id, photoChoices:r.photo_choices||{}, createdAt:r.created_at, updatedAt:r.updated_at }; }
+function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, photo_choices:p.photoChoices||{}, slot_overrides:p.slotOverrides||{}, created_at:p.createdAt, updated_at:p.updatedAt }; }
+function rowToPost(r){ return { id:r.id, name:r.name, opponent:r.opponent, templateId:r.template_id, assignments:r.assignments||{}, captainSlotId:r.captain_slot_id, photoChoices:r.photo_choices||{}, slotOverrides:r.slot_overrides||{}, createdAt:r.created_at, updatedAt:r.updated_at }; }
 function logoToRow(l){ return { id:l.id, group_id:currentGroup.id, name:l.name, photo_asset_id:l.photoAssetId, created_at:l.createdAt }; }
 function rowToLogo(r){ return { id:r.id, name:r.name, photoAssetId:r.photo_asset_id, createdAt:r.created_at }; }
 const TO_ROW = { players:playerToRow, templates:templateToRow, posts:postToRow, logos:logoToRow };
@@ -563,7 +564,7 @@ const state = {
   players: [],
   compos: [],
   design: { subview:'list', templateId:null, template:null, selectedSlotId:null, addMode:false, snapEnabled:true },
-  compo: { subview:'list', compoId:null, compo:null, template:null },
+  compo: { subview:'list', compoId:null, compo:null, template:null, adjustMode:false },
   effectif: { sort:'number', query:'' },
   settings: { club:'' },
 };
@@ -801,12 +802,13 @@ function renderSlotsInCanvas(container, canvasEl, template, mode, extra){
   container.innerHTML = '';
   (template.slots||[]).forEach(slot=>{
     const kind = slot.kind || 'photo';
+    const es = mode==='compo' ? effectiveSlot(slot, extra.slotOverrides) : slot;
     const wrap = document.createElement('div');
     wrap.className = 'tpl-slot kind-'+kind;
-    wrap.style.left = (slot.x*100)+'%';
-    wrap.style.top = (slot.y*100)+'%';
-    wrap.style.width = (slot.w*100)+'%';
-    if (kind==='text') wrap.style.height = ((slot.h!=null?slot.h:0.08)*100)+'%';
+    wrap.style.left = (es.x*100)+'%';
+    wrap.style.top = (es.y*100)+'%';
+    wrap.style.width = (es.w*100)+'%';
+    if (kind==='text') wrap.style.height = ((es.h!=null?es.h:0.08)*100)+'%';
     wrap.dataset.slotId = slot.id;
 
     if (kind==='text'){
@@ -897,7 +899,11 @@ function renderSlotsInCanvas(container, canvasEl, template, mode, extra){
         selectSlot(slot.id);
       });
     } else if (mode==='compo'){
-      wrap.addEventListener('click', ()=> extra.onSlotTap(slot.id));
+      if (extra.adjustMode){
+        bindCompoSlotAdjust(wrap, canvasEl, extra.post, slot);
+      } else {
+        wrap.addEventListener('click', ()=> extra.onSlotTap(slot.id));
+      }
     }
   });
 
@@ -964,6 +970,62 @@ function bindSlotDrag(wrap, canvasEl, template, slot){
   wrap.addEventListener('pointerdown', (e)=> start(e, 'move'));
   resizeHandle.addEventListener('pointerdown', (e)=> start(e, 'resize'));
 }
+function bindCompoSlotAdjust(wrap, canvasEl, post, slot){
+  const isText = (slot.kind||'photo')==='text';
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'tpl-slot-resize';
+  wrap.appendChild(resizeHandle);
+
+  function start(e, mode){
+    e.stopPropagation();
+    e.preventDefault();
+    const pid = e.pointerId;
+    wrap.setPointerCapture(pid);
+    let startX = e.clientX, startY = e.clientY, moved = false;
+    const rect = canvasEl.getBoundingClientRect();
+    const es = effectiveSlot(slot, post.slotOverrides);
+    let curX = es.x, curY = es.y, curW = es.w, curH = es.h!=null ? es.h : 0.08;
+    function move(ev){
+      if (ev.pointerId !== pid) return;
+      const dx = ev.clientX-startX, dy = ev.clientY-startY;
+      if (Math.abs(dx)>4 || Math.abs(dy)>4) moved = true;
+      if (mode==='move'){
+        curX = clamp(curX + dx/rect.width, 0.02, 0.98);
+        curY = clamp(curY + dy/rect.height, 0.02, 0.98);
+        wrap.style.left = (curX*100)+'%';
+        wrap.style.top = (curY*100)+'%';
+      } else if (isText){
+        curW = clamp(curW + dx/rect.width, 0.08, 0.9);
+        curH = clamp(curH + dy/rect.height, 0.04, 0.5);
+        wrap.style.width = (curW*100)+'%';
+        wrap.style.height = (curH*100)+'%';
+      } else {
+        const delta = (dx+dy)/2/rect.width;
+        curW = clamp(curW + delta, 0.05, 0.4);
+        wrap.style.width = (curW*100)+'%';
+      }
+      startX = ev.clientX; startY = ev.clientY;
+    }
+    function up(ev){
+      if (ev.pointerId !== pid) return;
+      wrap.removeEventListener('pointermove', move);
+      wrap.removeEventListener('pointerup', up);
+      try{ wrap.releasePointerCapture(pid); }catch(err){}
+      if (moved){
+        if (!post.slotOverrides) post.slotOverrides = {};
+        const ov = post.slotOverrides[slot.id] || {};
+        ov.x = curX; ov.y = curY; ov.w = curW;
+        if (isText) ov.h = curH;
+        post.slotOverrides[slot.id] = ov;
+        saveCompo(false);
+      }
+    }
+    wrap.addEventListener('pointermove', move);
+    wrap.addEventListener('pointerup', up);
+  }
+  wrap.addEventListener('pointerdown', (e)=> start(e, 'move'));
+  resizeHandle.addEventListener('pointerdown', (e)=> start(e, 'resize'));
+}
 function hideGuides(){
   const gv = document.getElementById('guideV'), gh = document.getElementById('guideH');
   if (gv) gv.hidden = true;
@@ -999,10 +1061,24 @@ function rerenderCurrentCanvas(){
         assignments: state.compo.compo.assignments,
         captainSlotId: state.compo.compo.captainSlotId,
         photoChoices: state.compo.compo.photoChoices,
+        slotOverrides: state.compo.compo.slotOverrides,
+        adjustMode: state.compo.adjustMode,
+        post: state.compo.compo,
         onSlotTap: onCompoSlotTap,
       }));
     }
   }
+}
+function effectiveSlot(slot, overrides){
+  const o = overrides && overrides[slot.id];
+  if (!o) return slot;
+  return {
+    ...slot,
+    x: o.x!=null ? o.x : slot.x,
+    y: o.y!=null ? o.y : slot.y,
+    w: o.w!=null ? o.w : slot.w,
+    h: o.h!=null ? o.h : slot.h,
+  };
 }
 function resolvePlayerPhotoAssetId(player, template, photoChoices, slotId){
   const extras = player.photos || [];
@@ -1646,6 +1722,7 @@ async function duplicateCompo(id){
     assignments: {...(c.assignments||{})},
     captainSlotId: c.captainSlotId||null,
     photoChoices: {...(c.photoChoices||{})},
+    slotOverrides: {...(c.slotOverrides||{})},
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -1680,7 +1757,7 @@ function openNewCompoSheet(){
       const opponent = body.querySelector('#cOpponent').value.trim();
       const templateId = body.querySelector('#cTemplate').value;
       body.querySelector('#cCreate').disabled = true;
-      const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, photoChoices:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+      const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, photoChoices:{}, slotOverrides:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
       await idbPut('posts', data);
       await refreshCompos();
       closeSheet();
@@ -1698,6 +1775,8 @@ function openCompoEditor(id){
   state.compo.compo = JSON.parse(JSON.stringify(c));
   state.compo.compo.assignments = state.compo.compo.assignments || {};
   state.compo.compo.photoChoices = state.compo.compo.photoChoices || {};
+  state.compo.compo.slotOverrides = state.compo.compo.slotOverrides || {};
+  state.compo.adjustMode = false;
   state.compo.template = tpl;
   render();
 }
@@ -1706,14 +1785,17 @@ async function renderCompoEditor(root){
   const tpl = state.compo.template;
   const photoIds = [tpl.bgAssetId, ...slotAssignmentPhotoIds(tpl, c.assignments||{}, c.photoChoices)];
   await warmPhotoCache(photoIds);
+  const adjustMode = state.compo.adjustMode;
   root.innerHTML = `
     <div class="editor-toolbar">
       <button class="btn-icon" id="btnBack">←</button>
       <input type="text" id="compoName" class="editor-title-input" value="${escapeAttr(c.name||'')}">
+      <button class="btn-icon ${adjustMode?'btn-icon-active':''}" id="btnAdjust" title="Ajuster taille/emplacement">${adjustMode?'✓':'⤢'}</button>
       <button class="btn-icon" id="btnCaptain" title="Capitaine">©</button>
       <button class="btn-icon" id="btnCaptions" title="Légendes Instagram">📝</button>
       <button class="btn-icon" id="btnClearCompo" title="Vider">↺</button>
     </div>
+    ${adjustMode? `<p class="editor-hint">Glisse un emplacement pour le déplacer, la poignée pour le redimensionner — ça ne change que cette composition. <a href="#" id="btnResetLayout" style="color:var(--accent);">Réinitialiser la mise en page</a></p>` : ''}
     <div class="canvas-wrap">
       <div class="tpl-canvas" id="compoCanvas" style="aspect-ratio:${tpl.bgW||1}/${tpl.bgH||1}">
         <img class="tpl-bg" src="${tpl.bgAssetId? escapeAttr(photoUrl(tpl.bgAssetId)):''}" alt="">
@@ -1742,6 +1824,19 @@ async function renderCompoEditor(root){
       closeSheet();
     });
   });
+  root.querySelector('#btnAdjust').addEventListener('click', ()=>{
+    state.compo.adjustMode = !state.compo.adjustMode;
+    renderCompoEditor(root);
+  });
+  root.querySelector('#btnResetLayout')?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    confirmDialog('Réinitialiser la mise en page ?', 'Les emplacements repasseront à leur taille et position d’origine (définies dans le template).', ()=>{
+      c.slotOverrides = {};
+      saveCompo(false);
+      closeSheet();
+      rerenderCurrentCanvas();
+    });
+  });
   root.querySelector('#btnCaptain').addEventListener('click', ()=> openCaptainSheet());
   root.querySelector('#btnCaptions').addEventListener('click', ()=> openCaptionSheet());
   root.querySelector('#btnSaveCompo').addEventListener('click', ()=> saveCompo(true));
@@ -1751,6 +1846,9 @@ async function renderCompoEditor(root){
     assignments: c.assignments,
     captainSlotId: c.captainSlotId,
     photoChoices: c.photoChoices,
+    slotOverrides: c.slotOverrides,
+    adjustMode: adjustMode,
+    post: c,
     onSlotTap: onCompoSlotTap,
   });
 }
@@ -1791,7 +1889,7 @@ function openCaptainSheet(){
 async function saveCompo(showToast){
   const c = state.compo.compo;
   if (!c) return;
-  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, photoChoices: c.photoChoices||{}, updatedAt: new Date().toISOString() });
+  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, photoChoices: c.photoChoices||{}, slotOverrides: c.slotOverrides||{}, updatedAt: new Date().toISOString() });
   await refreshCompos();
   if (showToast) toast('Composition enregistrée');
 }
@@ -2113,10 +2211,11 @@ async function renderCompoCanvasBlob(tpl, c){
     const kind = slot.kind || 'photo';
     const val = c.assignments[slot.id];
     if (!val) continue;
+    const es = effectiveSlot(slot, c.slotOverrides);
 
     if (kind==='text'){
-      const cx = slot.x*tpl.bgW, cy = slot.y*tpl.bgH;
-      const boxW = slot.w*tpl.bgW, boxH = (slot.h!=null?slot.h:0.08)*tpl.bgH;
+      const cx = es.x*tpl.bgW, cy = es.y*tpl.bgH;
+      const boxW = es.w*tpl.bgW, boxH = (es.h!=null?es.h:0.08)*tpl.bgH;
       const fontPx = (slot.fontSize!=null?slot.fontSize:0.12) * boxW;
       ctx.save();
       ctx.font = `700 ${Math.round(fontPx)}px Oswald, "Arial Narrow", sans-serif`;
@@ -2132,7 +2231,7 @@ async function renderCompoCanvasBlob(tpl, c){
       continue;
     }
 
-    const cx = slot.x*tpl.bgW, cy = slot.y*tpl.bgH, d = slot.w*tpl.bgW, r = d/2;
+    const cx = es.x*tpl.bgW, cy = es.y*tpl.bgH, d = es.w*tpl.bgW, r = d/2;
 
     if (kind==='logo'){
       const bitmap = await loadBitmapForPhoto(val);
