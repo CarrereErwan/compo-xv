@@ -428,8 +428,23 @@ const TO_ROW = { players:playerToRow, templates:templateToRow, posts:postToRow, 
 const FROM_ROW = { players:rowToPlayer, templates:rowToTemplate, posts:rowToPost, logos:rowToLogo };
 
 /* ---------- data layer: Supabase first, IndexedDB cache fallback + offline outbox ---------- */
+async function ensureGroup(){
+  if (currentGroup) return currentGroup;
+  if (currentUser && navigator.onLine){
+    try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
+  }
+  if (!currentGroup){
+    try{
+      const cached = localStorage.getItem('compoxv_group');
+      if (cached) currentGroup = JSON.parse(cached);
+    }catch(err){ console.error(err); }
+  }
+  if (currentGroup && typeof markSessionValid==='function') markSessionValid();
+  return currentGroup;
+}
 async function idbGetAll(store){
   if (store==='settings') return [];
+  await ensureGroup();
   if (navigator.onLine && sb && currentGroup){
     try{
       const { data, error } = await sb.from(store).select('*').eq('group_id', currentGroup.id);
@@ -442,6 +457,7 @@ async function idbGetAll(store){
   return cacheGetAll(store);
 }
 async function idbGet(store, key){
+  await ensureGroup();
   if (store==='settings'){
     if (!currentGroup) return null;
     if (navigator.onLine && sb){
@@ -467,6 +483,8 @@ async function idbGet(store, key){
   return cacheGet(store, key);
 }
 async function idbPut(store, obj){
+  await ensureGroup();
+  if (!currentGroup) throw new Error('Aucun groupe actif — reconnecte-toi (touche la pastille en haut de l’écran) puis réessaie.');
   if (store==='settings'){
     await cachePut('settings', obj);
     const row = { group_id: currentGroup.id, club: obj.club||null };
@@ -514,6 +532,8 @@ async function idbUpdate(store, key, patch){
 /* ---------- photo storage: Supabase Storage bucket "photos", cached locally ---------- */
 const photoUrlCache = new Map();
 async function storePhoto(blob){
+  await ensureGroup();
+  if (!currentGroup) throw new Error('Aucun groupe actif — reconnecte-toi (touche la pastille en haut de l’écran) puis réessaie.');
   const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
   const path = `${currentGroup.id}/${newId()}.${ext}`;
   await cachePut('photos', {id:path, blob});
@@ -2726,8 +2746,16 @@ async function importAllData(file){
 
 /* ---------- settings sheet ---------- */
 async function openSettingsSheet(){
+  if (!currentGroup && currentUser){
+    try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
+  }
   if (!currentGroup){
+    if (!currentUser){
+      showAuthScreen();
+      return;
+    }
     toast('Aucun groupe actif — reconnecte-toi si besoin');
+    markSessionInvalid();
     return;
   }
   let members = [];
