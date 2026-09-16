@@ -384,7 +384,9 @@ async function queueOutbox(op, store, payload){
   await cachePut('outbox', { id: newId(), op, store, payload, ts: Date.now() });
 }
 async function replayOutbox(){
-  if (!navigator.onLine || !sb || !currentGroup) return;
+  if (!navigator.onLine || !sb) return;
+  await ensureGroup();
+  if (!currentGroup) return;
   let items = [];
   try{ items = await cacheGetAll('outbox'); }catch(err){ return; }
   items.sort((a,b)=>a.ts-b.ts);
@@ -428,16 +430,26 @@ const TO_ROW = { players:playerToRow, templates:templateToRow, posts:postToRow, 
 const FROM_ROW = { players:rowToPlayer, templates:rowToTemplate, posts:rowToPost, logos:rowToLogo };
 
 /* ---------- data layer: Supabase first, IndexedDB cache fallback + offline outbox ---------- */
+let lastSessionRefresh = 0;
+async function ensureSession(){
+  if (currentUser && sessionValid) return true;
+  if (sb && navigator.onLine){
+    // Avoid hammering the refresh endpoint if several calls race in quick succession.
+    if (Date.now() - lastSessionRefresh > 3000){
+      lastSessionRefresh = Date.now();
+      try{
+        const { data, error } = await sb.auth.refreshSession();
+        if (!error && data && data.session){
+          currentUser = data.session.user;
+        }
+      }catch(err){ console.error('session refresh failed', err); }
+    }
+  }
+  return !!currentUser;
+}
 async function ensureGroup(){
   if (currentGroup) return currentGroup;
-  if (sb && navigator.onLine){
-    try{
-      const { data, error } = await sb.auth.refreshSession();
-      if (!error && data && data.session){
-        currentUser = data.session.user;
-      }
-    }catch(err){ console.error('session refresh failed', err); }
-  }
+  await ensureSession();
   if (currentUser && navigator.onLine){
     try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
   }
@@ -452,6 +464,7 @@ async function ensureGroup(){
 }
 async function idbGetAll(store){
   if (store==='settings') return [];
+  await ensureSession();
   await ensureGroup();
   if (navigator.onLine && sb && currentGroup){
     try{
@@ -465,6 +478,7 @@ async function idbGetAll(store){
   return cacheGetAll(store);
 }
 async function idbGet(store, key){
+  await ensureSession();
   await ensureGroup();
   if (store==='settings'){
     if (!currentGroup) return null;
@@ -491,6 +505,7 @@ async function idbGet(store, key){
   return cacheGet(store, key);
 }
 async function idbPut(store, obj){
+  await ensureSession();
   await ensureGroup();
   if (!currentGroup) throw new Error('Aucun groupe actif — reconnecte-toi (touche la pastille en haut de l’écran) puis réessaie.');
   if (store==='settings'){
@@ -523,6 +538,7 @@ async function idbPut(store, obj){
 }
 async function idbDelete(store, key){
   await cacheDelete(store, key);
+  await ensureSession();
   if (navigator.onLine && sb){
     try{
       const { error } = await sb.from(store).delete().eq('id', key);
@@ -540,6 +556,7 @@ async function idbUpdate(store, key, patch){
 /* ---------- photo storage: Supabase Storage bucket "photos", cached locally ---------- */
 const photoUrlCache = new Map();
 async function storePhoto(blob){
+  await ensureSession();
   await ensureGroup();
   if (!currentGroup) throw new Error('Aucun groupe actif — reconnecte-toi (touche la pastille en haut de l’écran) puis réessaie.');
   const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
@@ -1554,21 +1571,46 @@ function renderEffectifView(){
       'Pour chaque nom en double, on garde la fiche la plus complète (avec photo/poste en priorité) et on supprime les autres. Non réversible.',
       async ()=>{
         closeSheet();
-        showBusy('Nettoyage…');
+        showBusy('Vérification…');
         try{
-          for (const group of dupGroups){
+          await ensureSession();
+          await refreshPlayers();
+          const freshDupGroups = findDuplicatePlayers();
+          if (!navigator.onLine || !sb){
+            hideBusy();
+            toast('Connexion nécessaire pour nettoyer les doublons — réessaie une fois en ligne');
+            renderEffectifView();
+            return;
+          }
+          let removedCount = 0, failedCount = 0;
+          showBusy('Nettoyage…');
+          for (const group of freshDupGroups){
             const sorted = [...group].sort((a,b)=>{
               const score = p => (p.photoAssetId?2:0) + (p.position?1:0);
               return score(b) - score(a);
             });
             const [keep, ...remove] = sorted;
-            for (const p of remove) await idbDelete('players', p.id);
+            for (const p of remove){
+              try{
+                const { error } = await sb.from('players').delete().eq('id', p.id);
+                if (error) throw error;
+                await cacheDelete('players', p.id);
+                removedCount++;
+              }catch(err){
+                console.error('dedupe delete failed for', p.id, err);
+                failedCount++;
+              }
+            }
           }
           await refreshPlayers();
-          toast(`${dupCount} doublon${dupCount>1?'s':''} supprimé${dupCount>1?'s':''}`);
+          if (failedCount>0){
+            toast(`${removedCount} supprimé(s), ${failedCount} échec(s) — vérifie ta connexion et réessaie`);
+          } else {
+            toast(`${removedCount} doublon${removedCount>1?'s':''} supprimé${removedCount>1?'s':''}`);
+          }
         }catch(err){
           console.error(err);
-          toast('Erreur pendant le nettoyage');
+          toast('Erreur pendant le nettoyage : ' + (err.message||err));
         }finally{
           hideBusy();
           renderEffectifView();
