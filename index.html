@@ -3148,7 +3148,16 @@ async function init(){
   });
 
   if ('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(err=> console.error('SW registration failed', err));
+    let refreshedOnce = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if (refreshedOnce) return;
+      refreshedOnce = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then((reg)=>{
+      reg.update().catch(()=>{});
+      setInterval(()=> reg.update().catch(()=>{}), 5*60*1000);
+    }).catch(err=> console.error('SW registration failed', err));
   }
 
   try{
