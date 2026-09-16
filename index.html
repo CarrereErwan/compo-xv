@@ -58,13 +58,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 .app{display:flex;flex-direction:column;height:100%;}
 .app-header{flex:0 0 auto;padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);}
-.header-text{flex:1;min-width:0;}
+.header-text{flex:1;min-width:0;overflow:hidden;}
+.header-text .brand,.header-text .header-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .brand{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:1.25rem;letter-spacing:.02em;}
 .brand-mark{font-size:1.3rem;}
 .header-sub{color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
-.offline-pill{display:none;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:.68rem;font-weight:600;padding:.3em .6em;border-radius:999px;white-space:nowrap;}
-.offline-pill.is-visible{display:inline-flex;}
-.offline-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--danger);}
+.offline-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:.68rem;font-weight:600;padding:.3em .6em;border-radius:999px;white-space:nowrap;flex:0 0 auto;}
+.offline-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted);}
+.offline-pill.is-online .dot{background:#2FAE60;}
+.offline-pill.is-warning{border-color:var(--danger);color:var(--danger);cursor:pointer;}
+.offline-pill.is-warning .dot{background:var(--danger);}
 .content{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:96px;}
 .view{display:none;}
 .view.active{display:block;}
@@ -282,7 +285,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
       <div class="brand"><span class="brand-mark">🏉</span><span class="brand-name">Compo&nbsp;XV</span></div>
       <div class="header-sub" id="headerSub">Compositions</div>
     </div>
-    <span class="offline-pill" id="offlinePill"><span class="dot"></span>Hors ligne</span>
+    <span class="offline-pill" id="offlinePill"><span class="dot"></span><span id="offlinePillText">…</span></span>
     <button class="btn-icon" id="btnSettings" title="Réglages">⚙️</button>
   </header>
 
@@ -2828,9 +2831,42 @@ async function openSettingsSheet(){
   });
 }
 
-/* ---------- online / offline ---------- */
+/* ---------- online / offline / session status ---------- */
+let sessionValid = true;
 function updateOnlineStatus(){
-  els.offlinePill.classList.toggle('is-visible', !navigator.onLine);
+  const pill = els.offlinePill;
+  const text = document.getElementById('offlinePillText');
+  pill.classList.remove('is-online','is-warning');
+  pill.onclick = null;
+  if (!navigator.onLine){
+    text.textContent = 'Hors ligne';
+    pill.title = 'Pas de connexion internet — les modifications seront synchronisées au retour du réseau.';
+  } else if (!sessionValid){
+    pill.classList.add('is-warning');
+    text.textContent = 'Reconnexion';
+    pill.title = 'Session expirée, touche ici pour te reconnecter';
+    pill.onclick = ()=>{
+      document.getElementById('app').hidden = true;
+      showAuthScreen();
+    };
+  } else {
+    pill.classList.add('is-online');
+    text.textContent = 'En ligne';
+    pill.title = 'Connecté et synchronisé';
+  }
+}
+function markSessionInvalid(){
+  if (sessionValid){
+    sessionValid = false;
+    updateOnlineStatus();
+    toast('Session expirée — touche "Reconnexion" en haut de l’écran');
+  }
+}
+function markSessionValid(){
+  if (!sessionValid){
+    sessionValid = true;
+    updateOnlineStatus();
+  }
 }
 
 /* ---------- auth ---------- */
@@ -2961,6 +2997,8 @@ async function startApp(){
   }catch(err){ console.error(err); }
   hideBusy();
   els.app.hidden = false;
+  sessionValid = true;
+  updateOnlineStatus();
   switchView('compo');
   replayOutbox();
   bindRealtime();
@@ -3016,6 +3054,14 @@ async function init(){
     return;
   }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  sb.auth.onAuthStateChange((event, session)=>{
+    if (event==='SIGNED_OUT' || (!session && (event==='TOKEN_REFRESHED' || event==='USER_UPDATED'))){
+      if (!els.app.hidden) markSessionInvalid();
+    } else if (event==='TOKEN_REFRESHED' || event==='SIGNED_IN'){
+      markSessionValid();
+    }
+  });
 
   const { data: sessionData } = await sb.auth.getSession();
   if (sessionData && sessionData.session){
