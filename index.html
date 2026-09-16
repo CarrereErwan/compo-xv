@@ -84,6 +84,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .btn-block{width:100%;}
 .btn[disabled]{opacity:.5;}
 .btn-icon{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:1.05rem;display:flex;align-items:center;justify-content:center;color:var(--text);flex:0 0 auto;}
+.btn-icon-off{opacity:.4;}
 
 .player-list,.compo-list{list-style:none;margin:0;padding:0 16px;display:flex;flex-direction:column;gap:10px;}
 .player-row,.compo-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;box-shadow:var(--shadow);}
@@ -133,7 +134,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .tpl-canvas{position:relative;width:100%;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border);}
 .tpl-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;user-select:none;}
 .tpl-slots{position:absolute;inset:0;}
-.tpl-slot{position:absolute;transform:translate(-50%,-50%);touch-action:none;}
+.tpl-slot{position:absolute;transform:translate(-50%,-50%);touch-action:none;container-type:inline-size;}
 .tpl-slot.kind-photo,.tpl-slot.kind-logo{aspect-ratio:1;}
 .tpl-slot-shape{width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,.28);border:3px solid #000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3em;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:grab;}
 .tpl-slot-shape img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -145,18 +146,21 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .slot-plus{font-size:1.6em;font-weight:300;opacity:.85;}
 .slot-placeholder{opacity:.75;}
 .tpl-slot-resize{position:absolute;right:-11px;bottom:-11px;width:26px;height:26px;border-radius:50%;background:var(--gold);border:2px solid var(--surface);touch-action:none;z-index:2;}
-.slot-number-poster{position:absolute;left:50%;bottom:6%;transform:translate(-50%,50%);font-family:var(--font-display);font-weight:700;font-size:2.1em;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;line-height:1;pointer-events:none;white-space:nowrap;}
+.slot-number-poster{position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);font-family:var(--font-display);font-weight:700;font-size:58cqw;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;line-height:1;pointer-events:none;white-space:nowrap;}
 .slot-number-poster.is-ghost{opacity:.55;}
-.slot-captain-badge{position:absolute;right:-4%;top:2%;width:26%;aspect-ratio:1;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:.75em;border:2px solid #000;}
-.tpl-slot-label{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4%;white-space:nowrap;font-family:var(--font-display);color:#fff;-webkit-text-stroke:1.5px #000;paint-order:stroke fill;font-weight:700;font-size:.78em;}
+.slot-captain-badge{position:absolute;right:-4%;top:24%;width:26%;aspect-ratio:1;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:14cqw;border:2px solid #000;}
+.tpl-slot-label{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:30%;white-space:nowrap;font-family:var(--font-display);color:#fff;-webkit-text-stroke:1.5px #000;paint-order:stroke fill;font-weight:700;font-size:15cqw;}
 .tpl-slot-label.is-ghost{opacity:.55;-webkit-text-stroke:1.5px rgba(0,0,0,.5);}
-.tpl-slot-role{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6%;white-space:nowrap;background:var(--gold);color:var(--gold-contrast);font-weight:700;font-size:.62em;padding:.25em .55em;border-radius:999px;}
+.tpl-slot-role{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6%;white-space:nowrap;background:var(--gold);color:var(--gold-contrast);font-weight:700;font-size:10cqw;padding:.25em .55em;border-radius:999px;}
 .tpl-slot-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;border:2px dashed rgba(0,0,0,.55);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-family:var(--font-display);-webkit-text-stroke:1px #000;paint-order:stroke fill;overflow:hidden;padding:2%;word-break:break-word;}
 .tpl-slot-text.is-empty{color:rgba(255,255,255,.65);-webkit-text-stroke:0;font-family:var(--font-body);font-weight:600;font-size:.8em;background:rgba(0,0,0,.18);}
 .kind-chip-row{display:flex;gap:8px;margin-bottom:14px;}
 .kind-chip-row .chip{flex:1;text-align:center;}
 .fab{position:fixed;right:20px;bottom:calc(90px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:none;background:var(--accent);color:var(--accent-contrast);font-size:1.6rem;box-shadow:var(--shadow);z-index:5;}
 .fab-active{background:var(--danger);color:var(--danger-contrast);}
+.align-guide{position:absolute;background:var(--gold);z-index:4;pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5);}
+.align-guide-v{top:0;bottom:0;width:2px;}
+.align-guide-h{left:0;right:0;height:2px;}
 
 .sheet-overlay{position:fixed;inset:0;background:rgba(8,12,9,0);z-index:20;display:flex;align-items:flex-end;justify-content:center;transition:background .25s;}
 .sheet-overlay.is-open{background:rgba(8,12,9,.45);}
@@ -195,6 +199,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #loadingText{color:var(--text-muted);font-size:.9rem;max-width:40ch;}
 .loading.is-busy #loadingText{color:#fff;}
 
+.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:60;overflow-y:auto;}
+.auth-card{width:100%;max-width:360px;}
 .format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .format-card{border:2px solid var(--border);background:var(--surface-2);border-radius:12px;padding:10px;text-align:center;color:var(--text-muted);font-size:.8rem;font-weight:600;}
 .format-card.is-selected{border-color:var(--accent);color:var(--accent);}
@@ -206,6 +212,49 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 <div id="loading" class="loading">
   <div class="loading-mark">🏉</div>
   <p id="loadingText">Chargement…</p>
+</div>
+
+<div id="authScreen" class="auth-screen" hidden>
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:18px;"><span class="brand-mark">🏉</span><span class="brand-name">Compo&nbsp;XV</span></div>
+    <div class="chip-row" style="justify-content:center;margin-bottom:16px;">
+      <button type="button" class="chip chip-active" id="authTabSignin">Se connecter</button>
+      <button type="button" class="chip" id="authTabSignup">Créer un compte</button>
+    </div>
+    <label class="field"><span>Email</span>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="toi@exemple.fr">
+    </label>
+    <label class="field"><span>Mot de passe</span>
+      <input type="password" id="authPassword" autocomplete="current-password" placeholder="••••••••">
+    </label>
+    <p class="sheet-msg" id="authError" hidden style="color:var(--danger);"></p>
+    <button type="button" class="btn btn-accent btn-block" id="authSubmit">Se connecter</button>
+  </div>
+</div>
+
+<div id="groupScreen" class="auth-screen" hidden>
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:8px;"><span class="brand-mark">🏉</span><span class="brand-name">Compo&nbsp;XV</span></div>
+    <p class="sheet-msg" style="text-align:center;">Crée ton groupe (club) ou rejoins celui d’un coéquipier avec son code.</p>
+    <div class="chip-row" style="justify-content:center;margin-bottom:16px;">
+      <button type="button" class="chip chip-active" id="groupTabCreate">Créer un groupe</button>
+      <button type="button" class="chip" id="groupTabJoin">Rejoindre</button>
+    </div>
+    <div id="groupCreatePane">
+      <label class="field"><span>Nom du club</span>
+        <input type="text" id="groupName" placeholder="US Colomiers Rugby">
+      </label>
+      <button type="button" class="btn btn-accent btn-block" id="groupCreateSubmit">Créer</button>
+    </div>
+    <div id="groupJoinPane" hidden>
+      <label class="field"><span>Code d’invitation</span>
+        <input type="text" id="groupCode" placeholder="ex: a1b2c3d4" style="text-transform:lowercase;">
+      </label>
+      <button type="button" class="btn btn-accent btn-block" id="groupJoinSubmit">Rejoindre</button>
+    </div>
+    <p class="sheet-msg" id="groupError" hidden style="color:var(--danger);"></p>
+    <button type="button" class="btn btn-ghost btn-block" id="groupSignOut" style="margin-top:8px;">Se déconnecter</button>
+  </div>
 </div>
 
 <div id="app" class="app" hidden>
@@ -240,12 +289,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 <div id="toast" class="toast" hidden></div>
 
+<script src="supabase.js"></script>
 <script>
-/* ---------- IndexedDB layer ---------- */
+/* ---------- Supabase config (public by design; access is enforced by RLS) ---------- */
+const SUPABASE_URL = 'https://liinhcyjhkrokwtrdfsd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ukAT38L8U0LrBTZUmlQPFQ_GfQPVHuD';
+let sb = null;
+let currentUser = null;
+let currentGroup = null; // { id, name, invite_code, role }
+
+/* ---------- local cache (IndexedDB) — mirrors Supabase for offline use ---------- */
 let idb = null;
 function openDB(){
   return new Promise((resolve, reject)=>{
-    const req = indexedDB.open('compoxv', 1);
+    const req = indexedDB.open('compoxv', 2);
     req.onupgradeneeded = (e)=>{
       const d = e.target.result;
       if (!d.objectStoreNames.contains('players')) d.createObjectStore('players', {keyPath:'id'});
@@ -254,59 +311,221 @@ function openDB(){
       if (!d.objectStoreNames.contains('photos')) d.createObjectStore('photos', {keyPath:'id'});
       if (!d.objectStoreNames.contains('logos')) d.createObjectStore('logos', {keyPath:'id'});
       if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', {keyPath:'key'});
+      if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', {keyPath:'id'});
     };
     req.onsuccess = (e)=>{ idb = e.target.result; resolve(idb); };
     req.onerror = (e)=> reject(e.target.error);
   });
 }
-function idbGetAll(store){
+function cacheGetAll(store){
   return new Promise((resolve, reject)=>{
     const req = idb.transaction(store,'readonly').objectStore(store).getAll();
     req.onsuccess = ()=> resolve(req.result);
     req.onerror = ()=> reject(req.error);
   });
 }
-function idbGet(store, key){
+function cacheGet(store, key){
   return new Promise((resolve, reject)=>{
     const req = idb.transaction(store,'readonly').objectStore(store).get(key);
     req.onsuccess = ()=> resolve(req.result);
     req.onerror = ()=> reject(req.error);
   });
 }
-function idbPut(store, value){
+function cachePut(store, value){
   return new Promise((resolve, reject)=>{
     const req = idb.transaction(store,'readwrite').objectStore(store).put(value);
     req.onsuccess = ()=> resolve(value);
     req.onerror = ()=> reject(req.error);
   });
 }
-function idbDelete(store, key){
+function cacheDelete(store, key){
   return new Promise((resolve, reject)=>{
     const req = idb.transaction(store,'readwrite').objectStore(store).delete(key);
     req.onsuccess = ()=> resolve();
     req.onerror = ()=> reject(req.error);
   });
 }
-async function idbUpdate(store, key, patch){
-  const cur = (await idbGet(store, key)) || {id:key};
-  return idbPut(store, {...cur, ...patch});
-}
 function newId(){
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
 }
+async function queueOutbox(op, store, payload){
+  await cachePut('outbox', { id: newId(), op, store, payload, ts: Date.now() });
+}
+async function replayOutbox(){
+  if (!navigator.onLine || !sb || !currentGroup) return;
+  let items = [];
+  try{ items = await cacheGetAll('outbox'); }catch(err){ return; }
+  items.sort((a,b)=>a.ts-b.ts);
+  for (const item of items){
+    try{
+      if (item.store==='photos'){
+        const rec = await cacheGet('photos', item.payload.path);
+        if (rec){
+          const { error } = await sb.storage.from('photos').upload(item.payload.path, rec.blob, {contentType: rec.blob.type||'image/jpeg', upsert:true});
+          if (error) throw error;
+        }
+      } else {
+        const table = item.store;
+        if (item.op==='upsert'){
+          const { error } = await sb.from(table).upsert(item.payload);
+          if (error) throw error;
+        } else if (item.op==='delete'){
+          const { error } = await sb.from(table).delete().eq('id', item.payload.id);
+          if (error) throw error;
+        }
+      }
+      await cacheDelete('outbox', item.id);
+    }catch(err){
+      console.error('outbox replay failed, will retry later', item, err);
+    }
+  }
+  await loadAll();
+  render();
+}
 
-/* ---------- photo storage (blobs live in IndexedDB, never on a server) ---------- */
+/* ---------- row <-> app object mappers (snake_case DB <-> camelCase JS) ---------- */
+function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, number:p.number, position:p.position, photo_asset_id:p.photoAssetId, created_at:p.createdAt }; }
+function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, position:r.position, photoAssetId:r.photo_asset_id, createdAt:r.created_at }; }
+function templateToRow(t){ return { id:t.id, group_id:currentGroup.id, name:t.name, category:t.category, bg_asset_id:t.bgAssetId, bg_w:t.bgW, bg_h:t.bgH, slots:t.slots, created_at:t.createdAt }; }
+function rowToTemplate(r){ return { id:r.id, name:r.name, category:r.category, bgAssetId:r.bg_asset_id, bgW:r.bg_w, bgH:r.bg_h, slots:r.slots||[], createdAt:r.created_at }; }
+function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, created_at:p.createdAt, updated_at:p.updatedAt }; }
+function rowToPost(r){ return { id:r.id, name:r.name, opponent:r.opponent, templateId:r.template_id, assignments:r.assignments||{}, captainSlotId:r.captain_slot_id, createdAt:r.created_at, updatedAt:r.updated_at }; }
+function logoToRow(l){ return { id:l.id, group_id:currentGroup.id, name:l.name, photo_asset_id:l.photoAssetId, created_at:l.createdAt }; }
+function rowToLogo(r){ return { id:r.id, name:r.name, photoAssetId:r.photo_asset_id, createdAt:r.created_at }; }
+const TO_ROW = { players:playerToRow, templates:templateToRow, posts:postToRow, logos:logoToRow };
+const FROM_ROW = { players:rowToPlayer, templates:rowToTemplate, posts:rowToPost, logos:rowToLogo };
+
+/* ---------- data layer: Supabase first, IndexedDB cache fallback + offline outbox ---------- */
+async function idbGetAll(store){
+  if (store==='settings') return [];
+  if (navigator.onLine && sb && currentGroup){
+    try{
+      const { data, error } = await sb.from(store).select('*').eq('group_id', currentGroup.id);
+      if (error) throw error;
+      const rows = data.map(FROM_ROW[store]);
+      for (const r of rows) await cachePut(store, r);
+      return rows;
+    }catch(err){ console.error('fetch failed, using cache', store, err); }
+  }
+  return cacheGetAll(store);
+}
+async function idbGet(store, key){
+  if (store==='settings'){
+    if (!currentGroup) return null;
+    if (navigator.onLine && sb){
+      try{
+        const { data, error } = await sb.from('group_settings').select('*').eq('group_id', currentGroup.id).maybeSingle();
+        if (error) throw error;
+        if (data) await cachePut('settings', {key:'app', club:data.club||''});
+        return data ? {key:'app', club:data.club||''} : null;
+      }catch(err){ console.error(err); }
+    }
+    return cacheGet('settings','app');
+  }
+  if (navigator.onLine && sb && currentGroup){
+    try{
+      const { data, error } = await sb.from(store).select('*').eq('id', key).eq('group_id', currentGroup.id).maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const obj = FROM_ROW[store](data);
+      await cachePut(store, obj);
+      return obj;
+    }catch(err){ console.error('fetch failed, using cache', store, err); }
+  }
+  return cacheGet(store, key);
+}
+async function idbPut(store, obj){
+  if (store==='settings'){
+    await cachePut('settings', obj);
+    const row = { group_id: currentGroup.id, club: obj.club||null };
+    if (navigator.onLine && sb){
+      try{
+        const { error } = await sb.from('group_settings').upsert(row);
+        if (error) throw error;
+      }catch(err){ await queueOutbox('upsert','group_settings', row); }
+    } else {
+      await queueOutbox('upsert','group_settings', row);
+    }
+    return obj;
+  }
+  await cachePut(store, obj);
+  const row = TO_ROW[store](obj);
+  if (navigator.onLine && sb){
+    try{
+      const { error } = await sb.from(store).upsert(row);
+      if (error) throw error;
+    }catch(err){
+      console.error('write failed, queued for sync', store, err);
+      await queueOutbox('upsert', store, row);
+    }
+  } else {
+    await queueOutbox('upsert', store, row);
+  }
+  return obj;
+}
+async function idbDelete(store, key){
+  await cacheDelete(store, key);
+  if (navigator.onLine && sb){
+    try{
+      const { error } = await sb.from(store).delete().eq('id', key);
+      if (error) throw error;
+      return;
+    }catch(err){ console.error(err); }
+  }
+  await queueOutbox('delete', store, {id:key});
+}
+async function idbUpdate(store, key, patch){
+  const cur = (await idbGet(store, key)) || {id:key};
+  return idbPut(store, {...cur, ...patch});
+}
+
+/* ---------- photo storage: Supabase Storage bucket "photos", cached locally ---------- */
 const photoUrlCache = new Map();
 async function storePhoto(blob){
-  const id = newId();
-  await idbPut('photos', {id, blob});
-  photoUrlCache.set(id, URL.createObjectURL(blob));
-  return id;
+  const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
+  const path = `${currentGroup.id}/${newId()}.${ext}`;
+  await cachePut('photos', {id:path, blob});
+  photoUrlCache.set(path, URL.createObjectURL(blob));
+  if (navigator.onLine && sb){
+    try{
+      const { error } = await sb.storage.from('photos').upload(path, blob, {contentType: blob.type||'image/jpeg', upsert:true});
+      if (error) throw error;
+    }catch(err){
+      console.error('photo upload failed, queued', err);
+      await queueOutbox('upload','photos', {path});
+    }
+  } else {
+    await queueOutbox('upload','photos', {path});
+  }
+  return path;
 }
-async function getPhotoBlobById(id){
-  const rec = await idbGet('photos', id);
-  return rec ? rec.blob : null;
+async function restorePhotoBlob(path, blob){
+  await cachePut('photos', {id:path, blob});
+  photoUrlCache.set(path, URL.createObjectURL(blob));
+  if (navigator.onLine && sb){
+    try{
+      const { error } = await sb.storage.from('photos').upload(path, blob, {contentType: blob.type||'image/jpeg', upsert:true});
+      if (error) throw error;
+    }catch(err){
+      console.error('photo restore upload failed, queued', err);
+      await queueOutbox('upload','photos', {path});
+    }
+  } else {
+    await queueOutbox('upload','photos', {path});
+  }
+}
+async function getPhotoBlobById(path){
+  const cached = await cacheGet('photos', path);
+  if (cached) return cached.blob;
+  if (!navigator.onLine) return null;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/public/photos/${path}`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    await cachePut('photos', {id:path, blob});
+    return blob;
+  }catch(err){ console.error(err); return null; }
 }
 async function warmPhotoCache(ids){
   const missing = [...new Set(ids.filter(Boolean))].filter(id=> !photoUrlCache.has(id));
@@ -337,7 +556,7 @@ const state = {
   templates: [],
   players: [],
   compos: [],
-  design: { subview:'list', templateId:null, template:null, selectedSlotId:null, addMode:false },
+  design: { subview:'list', templateId:null, template:null, selectedSlotId:null, addMode:false, snapEnabled:true },
   compo: { subview:'list', compoId:null, compo:null, template:null },
   effectif: { sort:'number', query:'' },
   settings: { club:'' },
@@ -469,8 +688,10 @@ function pathForSlot(ctx, slot, cx, cy, r, d){
   else if (slot.shape === 'circle'){ ctx.arc(cx,cy,r,0,Math.PI*2); }
   else { roundRectPath(ctx, cx-r, cy-r, d, d, d*0.14); }
 }
-function strokeFillText(ctx, text, x, y, fontPx, fontFamily, weight, fillColor, strokeRatio){
+function strokeFillText(ctx, text, x, y, fontPx, fontFamily, weight, fillColor, strokeRatio, align, baseline){
   ctx.font = `${weight} ${Math.round(fontPx)}px ${fontFamily}`;
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = baseline || 'middle';
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   ctx.lineWidth = fontPx * strokeRatio;
@@ -541,6 +762,22 @@ function switchView(view){
   document.querySelectorAll('.view').forEach(v=> v.classList.toggle('active', v.id==='view-'+view));
   els.headerSub.textContent = {compo:'Compositions', effectif:'Effectif', design:'Templates'}[view];
   render();
+  refreshCurrentViewData();
+}
+async function refreshCurrentViewData(){
+  if (!navigator.onLine) return;
+  try{
+    if (state.view==='effectif'){
+      await refreshPlayers();
+      if (state.view==='effectif') renderEffectifList();
+    } else if (state.view==='design'){
+      await refreshTemplates();
+      if (state.view==='design' && state.design.subview==='list') renderDesignView();
+    } else if (state.view==='compo'){
+      await Promise.all([refreshCompos(), refreshTemplates()]);
+      if (state.view==='compo' && state.compo.subview==='list') renderCompoView();
+    }
+  }catch(err){ console.error(err); }
 }
 function render(){
   if (state.view==='compo') renderCompoView();
@@ -571,7 +808,7 @@ function renderSlotsInCanvas(container, canvasEl, template, mode, extra){
       let content = '';
       if (mode==='compo') content = extra.assignments[slot.id] || '';
       box.className = 'tpl-slot-text' + (content? '' : ' is-empty');
-      box.style.fontSize = ((slot.fontSize!=null?slot.fontSize:0.05)*100)+'%';
+      box.style.fontSize = ((slot.fontSize!=null?slot.fontSize:0.05)*100)+'cqw';
       box.style.color = slot.color || '#ffffff';
       box.textContent = content || (mode==='design' ? (slot.placeholder||'Texte libre') : 'Toucher pour éditer');
       wrap.appendChild(box);
@@ -691,6 +928,7 @@ function bindSlotDrag(wrap, canvasEl, template, slot){
       if (mode==='move'){
         slot.x = clamp(slot.x + dx/rect.width, 0.02, 0.98);
         slot.y = clamp(slot.y + dy/rect.height, 0.02, 0.98);
+        applySnap(slot, template);
         wrap.style.left = (slot.x*100)+'%';
         wrap.style.top = (slot.y*100)+'%';
       } else if (isText){
@@ -710,6 +948,7 @@ function bindSlotDrag(wrap, canvasEl, template, slot){
       wrap.removeEventListener('pointermove', move);
       wrap.removeEventListener('pointerup', up);
       try{ wrap.releasePointerCapture(pid); }catch(err){}
+      hideGuides();
       if (moved){ wrap.dataset.dragged = '1'; persistSlots(template); }
     }
     wrap.addEventListener('pointermove', move);
@@ -717,6 +956,25 @@ function bindSlotDrag(wrap, canvasEl, template, slot){
   }
   wrap.addEventListener('pointerdown', (e)=> start(e, 'move'));
   resizeHandle.addEventListener('pointerdown', (e)=> start(e, 'resize'));
+}
+function hideGuides(){
+  const gv = document.getElementById('guideV'), gh = document.getElementById('guideH');
+  if (gv) gv.hidden = true;
+  if (gh) gh.hidden = true;
+}
+function applySnap(slot, template){
+  const gv = document.getElementById('guideV'), gh = document.getElementById('guideH');
+  if (!state.design.snapEnabled){ hideGuides(); return; }
+  const threshold = 0.012;
+  const xs = template.slots.filter(s=>s.id!==slot.id).map(s=>s.x).concat([0.5]);
+  const ys = template.slots.filter(s=>s.id!==slot.id).map(s=>s.y).concat([0.5]);
+  let snapX = null, snapY = null;
+  for (const ox of xs){ if (Math.abs(slot.x-ox) < threshold){ snapX = ox; break; } }
+  for (const oy of ys){ if (Math.abs(slot.y-oy) < threshold){ snapY = oy; break; } }
+  if (snapX!=null) slot.x = snapX;
+  if (snapY!=null) slot.y = snapY;
+  if (gv){ gv.hidden = snapX==null; if (snapX!=null) gv.style.left = (snapX*100)+'%'; }
+  if (gh){ gh.hidden = snapY==null; if (snapY!=null) gh.style.top = (snapY*100)+'%'; }
 }
 
 function rerenderCurrentCanvas(){
@@ -758,7 +1016,7 @@ function persistSlots(template){
 }
 
 function addSlot(template, x, y){
-  const slot = { id: 's'+Math.random().toString(36).slice(2,9), x, y, w:0.16, h:0.08, shape:'oval', kind:'photo', showName:true, showNumber:true, role:'', fontSize:0.05, color:'#ffffff', placeholder:'Texte libre' };
+  const slot = { id: 's'+Math.random().toString(36).slice(2,9), x, y, w:0.16, h:0.08, shape:'oval', kind:'photo', showName:true, showNumber:true, role:'', fontSize:0.12, color:'#ffffff', placeholder:'Texte libre' };
   template.slots.push(slot);
   persistSlots(template);
   rerenderCurrentCanvas();
@@ -790,8 +1048,8 @@ function openSlotConfigSheet(slotId){
         ${kind==='text' ? `
           <label class="field"><span>Style</span></label>
           <div class="field-row" style="margin-bottom:14px;">
-            <button type="button" class="chip ${(slot.fontSize||0.05)>=0.07?'chip-active':''}" data-fs="0.09">Titre</button>
-            <button type="button" class="chip ${(slot.fontSize||0.05)<0.07?'chip-active':''}" data-fs="0.045">Texte</button>
+            <button type="button" class="chip ${(slot.fontSize||0.12)>=0.18?'chip-active':''}" data-fs="0.28">Titre</button>
+            <button type="button" class="chip ${(slot.fontSize||0.12)<0.18?'chip-active':''}" data-fs="0.12">Texte</button>
           </div>
           <label class="field"><span>Couleur</span></label>
           <div class="field-row" style="margin-bottom:14px;">
@@ -1037,14 +1295,17 @@ async function renderDesignEditor(root){
     <div class="editor-toolbar">
       <button class="btn-icon" id="btnBack">←</button>
       <input type="text" id="tplName" class="editor-title-input" value="${escapeAttr(t.name||'')}" placeholder="Nom du template">
+      <button class="btn-icon ${state.design.snapEnabled?'':'btn-icon-off'}" id="btnSnapToggle" title="Aides d’alignement">🧲</button>
       <button class="btn-icon" id="btnChangeBg" title="Changer le visuel">🖼</button>
     </div>
     <input type="file" accept="image/*" id="changeBgFile" hidden>
-    <p class="editor-hint">Touche un emplacement pour le régler, glisse-le pour le déplacer, ou ajoute-en un nouveau avec le bouton +.</p>
+    <p class="editor-hint">Touche un emplacement pour le régler, glisse-le pour le déplacer, ou ajoute-en un nouveau avec le bouton +. L’aimant 🧲 active/désactive l’alignement automatique.</p>
     <div class="canvas-wrap">
       <div class="tpl-canvas" id="tplCanvas" style="aspect-ratio:${t.bgW||1}/${t.bgH||1}">
         <img class="tpl-bg" src="${t.bgAssetId? escapeAttr(photoUrl(t.bgAssetId)):''}" alt="">
         <div class="tpl-slots" id="tplSlots"></div>
+        <div class="align-guide align-guide-v" id="guideV" hidden></div>
+        <div class="align-guide align-guide-h" id="guideH" hidden></div>
       </div>
     </div>
     <button class="fab ${state.design.addMode?'fab-active':''}" id="btnAddSlot">${state.design.addMode?'✕':'+'}</button>
@@ -1058,6 +1319,10 @@ async function renderDesignEditor(root){
     t.name = e.target.value.trim() || 'Sans nom';
     await idbUpdate('templates', t.id, {name:t.name});
     await refreshTemplates();
+  });
+  root.querySelector('#btnSnapToggle').addEventListener('click', ()=>{
+    state.design.snapEnabled = !state.design.snapEnabled;
+    renderDesignEditor(root);
   });
   root.querySelector('#btnChangeBg').addEventListener('click', ()=> root.querySelector('#changeBgFile').click());
   root.querySelector('#changeBgFile').addEventListener('change', async (e)=>{
@@ -1305,6 +1570,7 @@ async function duplicateCompo(id){
     opponent: c.opponent||null,
     templateId: c.templateId,
     assignments: {...(c.assignments||{})},
+    captainSlotId: c.captainSlotId||null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -1739,7 +2005,7 @@ async function renderCompoCanvasBlob(tpl, c){
     if (kind==='text'){
       const cx = slot.x*tpl.bgW, cy = slot.y*tpl.bgH;
       const boxW = slot.w*tpl.bgW, boxH = (slot.h!=null?slot.h:0.08)*tpl.bgH;
-      const fontPx = (slot.fontSize!=null?slot.fontSize:0.05) * tpl.bgW;
+      const fontPx = (slot.fontSize!=null?slot.fontSize:0.12) * boxW;
       ctx.save();
       ctx.font = `700 ${Math.round(fontPx)}px Oswald, "Arial Narrow", sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1796,18 +2062,18 @@ async function renderCompoCanvasBlob(tpl, c){
     ctx.restore();
 
     if (slot.showNumber && player.number!=null){
-      const fontPx = d*0.62;
-      strokeFillText(ctx, String(player.number), cx, cy + r*0.86, fontPx, 'Oswald, "Arial Narrow", sans-serif', 700, '#ffffff', 0.16);
+      const fontPx = d*0.58;
+      strokeFillText(ctx, String(player.number), cx, cy + r, fontPx, 'Oswald, "Arial Narrow", sans-serif', 700, '#ffffff', 0.15, 'center', 'middle');
     }
     if (slot.showName && player.name){
       const text = String(player.name).toUpperCase();
-      const fontPx = d*0.155;
-      const ty = cy + r + d*0.08 + fontPx*0.5;
-      strokeFillText(ctx, text, cx, ty, fontPx, '"Work Sans", sans-serif', 700, '#ffffff', 0.18);
+      const fontPx = d*0.15;
+      const ty = cy + r + d*0.30;
+      strokeFillText(ctx, text, cx, ty, fontPx, '"Work Sans", sans-serif', 700, '#ffffff', 0.16, 'center', 'top');
     }
     if (c.captainSlotId===slot.id){
-      const br = d*0.135;
-      const bx = cx + r*0.62, by = cy + r*0.28;
+      const br = d*0.13;
+      const bx = cx + r*0.62, by = cy + r*0.30;
       ctx.save();
       ctx.beginPath(); ctx.arc(bx,by,br,0,Math.PI*2);
       ctx.fillStyle = '#ffffff'; ctx.fill();
@@ -1904,18 +2170,19 @@ function blobToDataURL(blob){
 async function exportAllData(){
   showBusy('Préparation de l’export…');
   try{
-    const [players, templates, posts, settings] = await Promise.all([
-      idbGetAll('players'), idbGetAll('templates'), idbGetAll('posts'), idbGet('settings','app'),
+    const [players, templates, posts, logos, settings] = await Promise.all([
+      idbGetAll('players'), idbGetAll('templates'), idbGetAll('posts'), idbGetAll('logos'), idbGet('settings','app'),
     ]);
     const photoIds = new Set();
     players.forEach(p=> p.photoAssetId && photoIds.add(p.photoAssetId));
     templates.forEach(t=> t.bgAssetId && photoIds.add(t.bgAssetId));
+    logos.forEach(l=> l.photoAssetId && photoIds.add(l.photoAssetId));
     const photos = {};
     for (const id of photoIds){
       const blob = await getPhotoBlobById(id);
       if (blob) photos[id] = await blobToDataURL(blob);
     }
-    const bundle = { app:'compo-xv', version:1, exportedAt:new Date().toISOString(), players, templates, posts, settings: settings||null, photos };
+    const bundle = { app:'compo-xv', version:1, exportedAt:new Date().toISOString(), players, templates, posts, logos, settings: settings||null, photos };
     const blob = new Blob([JSON.stringify(bundle)], {type:'application/json'});
     const filename = 'compo-xv-'+formatDateShort(new Date()).replace('/','-')+'.json';
     hideBusy();
@@ -1962,16 +2229,23 @@ async function importAllData(file){
     const text = await file.text();
     const bundle = JSON.parse(text);
     if (!bundle || bundle.app!=='compo-xv') throw new Error('invalid file');
-    for (const [id, dataUrl] of Object.entries(bundle.photos||{})){
+    // Photos are stored under a path scoped to their original group; re-path them
+    // under the current group so uploads pass security checks, and remap references.
+    const idMap = {};
+    for (const [oldId, dataUrl] of Object.entries(bundle.photos||{})){
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      await idbPut('photos', {id, blob});
+      const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
+      const newPath = `${currentGroup.id}/${newId()}.${ext}`;
+      await restorePhotoBlob(newPath, blob);
+      idMap[oldId] = newPath;
     }
-    for (const p of bundle.players||[]) await idbPut('players', p);
-    for (const t of bundle.templates||[]) await idbPut('templates', t);
+    const remap = (assetId)=> assetId && idMap[assetId] ? idMap[assetId] : assetId;
+    for (const p of bundle.players||[]) await idbPut('players', {...p, photoAssetId: remap(p.photoAssetId)});
+    for (const t of bundle.templates||[]) await idbPut('templates', {...t, bgAssetId: remap(t.bgAssetId)});
+    for (const l of bundle.logos||[]) await idbPut('logos', {...l, photoAssetId: remap(l.photoAssetId)});
     for (const po of bundle.posts||[]) await idbPut('posts', po);
-    if (bundle.settings) await idbPut('settings', bundle.settings);
-    photoUrlCache.clear();
+    if (bundle.settings && bundle.settings.club) await saveClub(bundle.settings.club);
     await loadAll();
     render();
     toast('Import terminé');
@@ -1984,26 +2258,41 @@ async function importAllData(file){
 }
 
 /* ---------- settings sheet ---------- */
-function openSettingsSheet(){
+async function openSettingsSheet(){
+  let members = [];
+  try{
+    const { data } = await sb.from('group_members').select('user_id, role').eq('group_id', currentGroup.id);
+    members = data || [];
+  }catch(err){ console.error(err); }
   openSheet((body)=>{
+    const isAdmin = currentGroup.role === 'admin';
     body.innerHTML = `
       <h3 class="sheet-title">Réglages</h3>
-      <label class="field"><span>Nom du club</span>
+      <label class="field"><span>Nom du club (affiché dans les légendes)</span>
         <input type="text" id="stClub" value="${escapeAttr(state.settings.club||'')}" placeholder="US Colomiers Rugby">
       </label>
+      <div class="hint-banner" style="margin:0 0 16px;">
+        <strong>Groupe : ${escapeHTML(currentGroup.name)}</strong> (${members.length} membre${members.length>1?'s':''})
+        ${isAdmin? `<div style="margin-top:8px;">Code d’invitation à partager : <code style="font-family:var(--font-display);font-weight:700;">${escapeHTML(currentGroup.invite_code)}</code> <button type="button" class="btn btn-secondary" id="stCopyCode" style="padding:.3em .8em;font-size:.78rem;">Copier</button></div>` : ''}
+      </div>
       ${deferredInstallPrompt? `<button type="button" class="btn btn-accent btn-block" id="stInstall" style="margin-bottom:14px;">Installer l’application</button>` : ''}
-      <p class="sheet-msg" style="margin-top:0;">Compo XV fonctionne 100% hors-ligne : effectif, templates et compositions sont stockés uniquement sur cet appareil, sans compte ni serveur.</p>
+      <p class="sheet-msg" style="margin-top:0;">Effectif, templates et compositions sont synchronisés automatiquement avec les autres membres du groupe, et restent consultables hors-ligne (cache local sur cet appareil).</p>
       <div class="sheet-actions" style="flex-direction:column;">
-        <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter mes données (partage / sauvegarde)</button>
-        <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer des données</button>
+        <button type="button" class="btn btn-secondary btn-block" id="stExport">Exporter une sauvegarde</button>
+        <button type="button" class="btn btn-secondary btn-block" id="stImport">Importer une sauvegarde</button>
+        <button type="button" class="btn btn-ghost btn-block" id="stSignOut">Se déconnecter</button>
       </div>
       <input type="file" accept="application/json" id="stImportFile" hidden>
-      <p class="sheet-msg">Pour partager l’effectif et les templates avec un collègue, ou les retrouver sur un autre appareil : exporte un fichier ici et fais-le lui parvenir (message, email, clé USB…) — il l’importe ensuite dans sa propre installation de l’app. Ce n’est pas une synchronisation automatique : après import, chacun a sa propre copie.</p>
+      <p class="sheet-msg">L’export sert de sauvegarde ou pour démarrer un nouveau groupe avec les mêmes données — la synchro entre coéquipiers se fait automatiquement via le groupe, pas besoin d’export/import au quotidien.</p>
       <div class="sheet-actions">
         <button type="button" class="btn btn-ghost btn-block" id="stClose">Fermer</button>
       </div>
     `;
     body.querySelector('#stClub').addEventListener('change', (e)=> saveClub(e.target.value.trim()));
+    body.querySelector('#stCopyCode')?.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(currentGroup.invite_code); toast('Code copié'); }
+      catch(err){ toast('Copie impossible, note le code à la main : '+currentGroup.invite_code); }
+    });
     body.querySelector('#stInstall')?.addEventListener('click', async ()=>{
       if (!deferredInstallPrompt) return;
       deferredInstallPrompt.prompt();
@@ -2020,6 +2309,10 @@ function openSettingsSheet(){
       closeSheet();
       await importAllData(file);
     });
+    body.querySelector('#stSignOut').addEventListener('click', async ()=>{
+      await sb.auth.signOut();
+      location.reload();
+    });
     body.querySelector('#stClose').addEventListener('click', closeSheet);
   });
 }
@@ -2029,13 +2322,164 @@ function updateOnlineStatus(){
   els.offlinePill.classList.toggle('is-visible', !navigator.onLine);
 }
 
+/* ---------- auth ---------- */
+let authMode = 'signin';
+function bindAuthScreen(){
+  const tabIn = document.getElementById('authTabSignin');
+  const tabUp = document.getElementById('authTabSignup');
+  const err = document.getElementById('authError');
+  function setMode(mode){
+    authMode = mode;
+    tabIn.classList.toggle('chip-active', mode==='signin');
+    tabUp.classList.toggle('chip-active', mode==='signup');
+    document.getElementById('authSubmit').textContent = mode==='signin' ? 'Se connecter' : 'Créer le compte';
+    err.hidden = true;
+  }
+  tabIn.addEventListener('click', ()=> setMode('signin'));
+  tabUp.addEventListener('click', ()=> setMode('signup'));
+  document.getElementById('authSubmit').addEventListener('click', async ()=>{
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    if (!email || !password){ err.textContent = 'Renseigne un email et un mot de passe.'; err.hidden = false; return; }
+    const btn = document.getElementById('authSubmit');
+    btn.disabled = true;
+    err.hidden = true;
+    try{
+      const fn = authMode==='signin' ? sb.auth.signInWithPassword({email, password}) : sb.auth.signUp({email, password});
+      const { data, error } = await fn;
+      if (error) throw error;
+      if (authMode==='signup' && !data.session){
+        err.textContent = 'Compte créé. Si une confirmation par email est activée sur le projet, vérifie ta boîte mail, sinon reconnecte-toi.';
+        err.hidden = false;
+        btn.disabled = false;
+        return;
+      }
+      await afterSignedIn(data.session ? data.session.user : data.user);
+    }catch(e){
+      err.textContent = e.message || 'Échec de la connexion.';
+      err.hidden = false;
+      btn.disabled = false;
+    }
+  });
+}
+function showAuthScreen(){
+  els.loading.hidden = true;
+  document.getElementById('groupScreen').hidden = true;
+  document.getElementById('authScreen').hidden = false;
+}
+
+/* ---------- group ---------- */
+function bindGroupScreen(){
+  const tabCreate = document.getElementById('groupTabCreate');
+  const tabJoin = document.getElementById('groupTabJoin');
+  const createPane = document.getElementById('groupCreatePane');
+  const joinPane = document.getElementById('groupJoinPane');
+  const err = document.getElementById('groupError');
+  tabCreate.addEventListener('click', ()=>{
+    tabCreate.classList.add('chip-active'); tabJoin.classList.remove('chip-active');
+    createPane.hidden = false; joinPane.hidden = true; err.hidden = true;
+  });
+  tabJoin.addEventListener('click', ()=>{
+    tabJoin.classList.add('chip-active'); tabCreate.classList.remove('chip-active');
+    joinPane.hidden = false; createPane.hidden = true; err.hidden = true;
+  });
+  document.getElementById('groupCreateSubmit').addEventListener('click', async ()=>{
+    const name = document.getElementById('groupName').value.trim();
+    if (!name){ err.textContent = 'Donne un nom à ton groupe.'; err.hidden = false; return; }
+    err.hidden = true;
+    try{
+      const { data, error } = await sb.rpc('create_group', { gname: name });
+      if (error) throw error;
+      await resolveCurrentGroup();
+      await startApp();
+    }catch(e){ err.textContent = e.message || 'Échec de la création.'; err.hidden = false; }
+  });
+  document.getElementById('groupJoinSubmit').addEventListener('click', async ()=>{
+    const code = document.getElementById('groupCode').value.trim().toLowerCase();
+    if (!code){ err.textContent = 'Entre le code reçu.'; err.hidden = false; return; }
+    err.hidden = true;
+    try{
+      const { data, error } = await sb.rpc('join_group_by_code', { code });
+      if (error) throw error;
+      await resolveCurrentGroup();
+      await startApp();
+    }catch(e){ err.textContent = 'Code invalide ou expiré.'; err.hidden = false; }
+  });
+  document.getElementById('groupSignOut').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+}
+function showGroupScreen(){
+  els.loading.hidden = true;
+  document.getElementById('authScreen').hidden = true;
+  document.getElementById('groupScreen').hidden = false;
+}
+async function resolveCurrentGroup(){
+  const { data: memberships, error } = await sb
+    .from('group_members')
+    .select('group_id, role, groups(id, name, invite_code)')
+    .eq('user_id', currentUser.id)
+    .limit(1);
+  if (error) throw error;
+  if (!memberships || memberships.length===0){ currentGroup = null; return; }
+  const m = memberships[0];
+  currentGroup = { id: m.groups.id, name: m.groups.name, invite_code: m.groups.invite_code, role: m.role };
+  localStorage.setItem('compoxv_group', JSON.stringify(currentGroup));
+}
+async function afterSignedIn(user){
+  currentUser = user || currentUser;
+  try{
+    await resolveCurrentGroup();
+  }catch(err){
+    console.error('could not resolve group live, trying cache', err);
+    try{
+      const cached = localStorage.getItem('compoxv_group');
+      currentGroup = cached ? JSON.parse(cached) : null;
+    }catch(e2){ currentGroup = null; }
+  }
+  if (!currentGroup){ showGroupScreen(); bindGroupScreen(); return; }
+  await startApp();
+}
+async function startApp(){
+  document.getElementById('authScreen').hidden = true;
+  document.getElementById('groupScreen').hidden = true;
+  showBusy('Chargement des données…');
+  try{
+    await loadAll();
+  }catch(err){ console.error(err); }
+  hideBusy();
+  els.app.hidden = false;
+  switchView('compo');
+  replayOutbox();
+  bindRealtime();
+}
+function bindRealtime(){
+  if (!currentGroup) return;
+  sb.channel('group-'+currentGroup.id)
+    .on('postgres_changes', { event:'*', schema:'public', table:'players', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
+    .on('postgres_changes', { event:'*', schema:'public', table:'templates', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
+    .on('postgres_changes', { event:'*', schema:'public', table:'posts', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
+    .on('postgres_changes', { event:'*', schema:'public', table:'logos', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
+    .subscribe();
+}
+let realtimeRefreshTimer = null;
+function onRemoteChange(){
+  clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = setTimeout(async ()=>{
+    await loadAll();
+    render();
+  }, 600);
+}
+
 /* ---------- init ---------- */
 async function init(){
   bindTabbar();
+  bindAuthScreen();
   els.sheetOverlay.addEventListener('click', (e)=>{ if (e.target===els.sheetOverlay) closeSheet(); });
   document.getElementById('btnSettings').addEventListener('click', openSettingsSheet);
 
-  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('online', ()=>{ updateOnlineStatus(); replayOutbox(); });
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus();
 
@@ -2050,15 +2494,24 @@ async function init(){
 
   try{
     await openDB();
-    await loadAll();
   }catch(err){
     console.error(err);
     els.loadingText.textContent = 'Impossible d’accéder au stockage local sur cet appareil. Vérifie que la navigation privée / le blocage des cookies n’est pas activé, puis recharge la page.';
     return;
   }
-  els.loading.hidden = true;
-  els.app.hidden = false;
-  switchView('compo');
+
+  if (!window.supabase || !window.supabase.createClient){
+    els.loadingText.textContent = 'Impossible de charger la librairie Supabase. Vérifie ta connexion puis recharge la page.';
+    return;
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (sessionData && sessionData.session){
+    await afterSignedIn(sessionData.session.user);
+  } else {
+    showAuthScreen();
+  }
 }
 
 init();
