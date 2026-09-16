@@ -1,4 +1,4 @@
-const CACHE_NAME = 'compoxv-v1';
+const CACHE_NAME = 'compoxv-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const CORE_ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
+  './supabase.js',
 ];
 
 self.addEventListener('install', (event) => {
