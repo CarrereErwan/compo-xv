@@ -1138,6 +1138,10 @@ function rerenderCurrentCanvas(){
     }
   }
 }
+function rerenderAndSaveCompo(){
+  rerenderCurrentCanvas();
+  saveCompo(false);
+}
 function effectiveSlot(slot, overrides){
   const o = overrides && overrides[slot.id];
   if (!o) return slot;
@@ -2059,11 +2063,12 @@ async function renderCompoEditor(root){
   });
   root.querySelector('#compoName').addEventListener('change', (e)=>{
     c.name = e.target.value.trim() || 'Sans nom';
+    saveCompo(false);
   });
   root.querySelector('#btnClearCompo').addEventListener('click', ()=>{
     confirmDialog('Vider cette composition ?', 'Tous les emplacements seront libérés.', ()=>{
       c.assignments = {};
-      rerenderCurrentCanvas();
+      rerenderAndSaveCompo();
       closeSheet();
     });
   });
@@ -2117,13 +2122,13 @@ function openCaptainSheet(){
       </ul>`;
     body.querySelector('#capNone')?.addEventListener('click', ()=>{
       c.captainSlotId = null;
-      rerenderCurrentCanvas();
+      rerenderAndSaveCompo();
       closeSheet();
     });
     body.querySelectorAll('[data-pick-captain-slot]').forEach(row=>{
       row.addEventListener('click', ()=>{
         c.captainSlotId = row.dataset.pickCaptainSlot;
-        rerenderCurrentCanvas();
+        rerenderAndSaveCompo();
         closeSheet();
       });
     });
@@ -2158,13 +2163,13 @@ function openTextValueSheet(slotId){
       </div>`;
     body.querySelector('#txtClear')?.addEventListener('click', ()=>{
       delete c.assignments[slotId];
-      rerenderCurrentCanvas();
+      rerenderAndSaveCompo();
       closeSheet();
     });
     body.querySelector('#txtSave').addEventListener('click', ()=>{
       const val = body.querySelector('#txtVal').value.trim();
       if (val) c.assignments[slotId] = val; else delete c.assignments[slotId];
-      rerenderCurrentCanvas();
+      rerenderAndSaveCompo();
       closeSheet();
     });
   });
@@ -2189,13 +2194,13 @@ async function openLogoPickerSheet(slotId){
     `;
     body.querySelector('#logoClear')?.addEventListener('click', ()=>{
       delete c.assignments[slotId];
-      rerenderCurrentCanvas();
+      rerenderAndSaveCompo();
       closeSheet();
     });
     body.querySelectorAll('[data-pick-logo]').forEach(row=>{
       row.addEventListener('click', ()=>{
         c.assignments[slotId] = row.dataset.pickLogo;
-        rerenderCurrentCanvas();
+        rerenderAndSaveCompo();
         closeSheet();
       });
     });
@@ -2212,7 +2217,7 @@ async function openLogoPickerSheet(slotId){
         const name = (file.name||'Logo').replace(/\.[a-z0-9]+$/i,'').slice(0,40);
         await idbPut('logos', { id:newId(), name, photoAssetId:photoId, createdAt:new Date().toISOString() });
         c.assignments[slotId] = photoId;
-        rerenderCurrentCanvas();
+        rerenderAndSaveCompo();
         toast('Logo ajouté');
       }catch(err){
         console.error(err);
@@ -2249,7 +2254,7 @@ async function openPlayerPickerSheet(slotId){
       `;
       body.querySelector('#pClear')?.addEventListener('click', ()=>{
         delete c.assignments[slotId];
-        rerenderCurrentCanvas();
+        rerenderAndSaveCompo();
         closeSheet();
       });
       body.querySelectorAll('[data-pick-player]').forEach(row=>{
@@ -2260,7 +2265,7 @@ async function openPlayerPickerSheet(slotId){
           if (player && player.photos && player.photos.length>0){
             await openPhotoChoiceSheet(player, tpl, slotId);
           } else {
-            rerenderCurrentCanvas();
+            rerenderAndSaveCompo();
             closeSheet();
           }
         });
@@ -2306,7 +2311,7 @@ async function openPhotoChoiceSheet(player, template, slotId){
       row.addEventListener('click', ()=>{
         const id = row.dataset.pickPhoto;
         if (id) c.photoChoices[slotId] = id; else delete c.photoChoices[slotId];
-        rerenderCurrentCanvas();
+        rerenderAndSaveCompo();
         closeSheet();
       });
     });
