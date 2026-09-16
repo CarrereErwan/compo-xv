@@ -1483,8 +1483,20 @@ function sortedPlayers(){
   if (!q) return list;
   return list.filter(p=> (String(p.name)+' '+(p.position||'')).toLowerCase().includes(q));
 }
+function findDuplicatePlayers(){
+  const groups = new Map();
+  for (const p of state.players){
+    const key = String(p.name||'').trim().toLowerCase();
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  return [...groups.values()].filter(g=>g.length>1);
+}
 function renderEffectifView(){
   const root = els.viewEffectif;
+  const dupGroups = findDuplicatePlayers();
+  const dupCount = dupGroups.reduce((n,g)=> n+g.length-1, 0);
   root.innerHTML = `
     <div class="view-toolbar">
       <h2>Effectif</h2>
@@ -1493,6 +1505,7 @@ function renderEffectifView(){
         <button class="btn btn-accent" id="btnAddPlayer">+ Joueur</button>
       </div>
     </div>
+    ${dupCount>0? `<p class="hint-banner">${dupCount} doublon${dupCount>1?'s':''} détecté${dupCount>1?'s':''} (même nom). <a href="#" id="btnDedupe" style="color:var(--accent);">Nettoyer automatiquement</a></p>` : ''}
     ${state.players.length===0 ? '' : `
     <div class="list-controls">
       <input type="search" id="efSearch" class="search-input" placeholder="Rechercher un joueur ou un poste…" value="${escapeAttr(state.effectif.query)}" style="margin-bottom:0;">
@@ -1503,6 +1516,35 @@ function renderEffectifView(){
     </div>`}
     <div id="efListWrap"></div>
   `;
+  root.querySelector('#btnDedupe')?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    confirmDialog(
+      `Supprimer ${dupCount} doublon${dupCount>1?'s':''} ?`,
+      'Pour chaque nom en double, on garde la fiche la plus complète (avec photo/poste en priorité) et on supprime les autres. Non réversible.',
+      async ()=>{
+        closeSheet();
+        showBusy('Nettoyage…');
+        try{
+          for (const group of dupGroups){
+            const sorted = [...group].sort((a,b)=>{
+              const score = p => (p.photoAssetId?2:0) + (p.position?1:0);
+              return score(b) - score(a);
+            });
+            const [keep, ...remove] = sorted;
+            for (const p of remove) await idbDelete('players', p.id);
+          }
+          await refreshPlayers();
+          toast(`${dupCount} doublon${dupCount>1?'s':''} supprimé${dupCount>1?'s':''}`);
+        }catch(err){
+          console.error(err);
+          toast('Erreur pendant le nettoyage');
+        }finally{
+          hideBusy();
+          renderEffectifView();
+        }
+      }
+    );
+  });
   root.querySelector('#btnAddPlayer')?.addEventListener('click', ()=> openPlayerForm());
   root.querySelector('#btnImportPlayers')?.addEventListener('click', ()=> openImportPlayersSheet());
   const search = root.querySelector('#efSearch');
@@ -1722,20 +1764,27 @@ Sacha Petit"></textarea>
       if (parsed.length===0){ toast('Aucun joueur détecté'); return; }
       const btn = body.querySelector('#importSubmit');
       btn.disabled = true; btn.textContent = 'Import…';
+      const existingNames = new Set(state.players.map(p=> String(p.name||'').trim().toLowerCase()));
+      let created = 0, skipped = 0;
       try{
         for (const p of parsed){
+          const key = p.name.trim().toLowerCase();
+          if (existingNames.has(key)){ skipped++; continue; }
           await idbPut('players', {
             id: newId(), name: p.name, number: p.number, position: p.position,
             photoAssetId: null, photos: [], createdAt: new Date().toISOString(),
           });
+          existingNames.add(key);
+          created++;
         }
         await refreshPlayers();
         closeSheet();
         renderEffectifView();
-        toast(`${parsed.length} joueur${parsed.length>1?'s':''} ajouté${parsed.length>1?'s':''}`);
+        toast(`${created} joueur${created>1?'s':''} ajouté${created>1?'s':''}` + (skipped? `, ${skipped} déjà présent${skipped>1?'s':''} ignoré${skipped>1?'s':''}` : ''));
       }catch(err){
         console.error(err);
-        toast('Erreur : ' + (err && (err.message || err.details || JSON.stringify(err))));
+        await refreshPlayers();
+        toast('Erreur : ' + (err && (err.message || err.details || JSON.stringify(err))) + ` (${created} déjà ajoutés avant l’erreur, relance sans risque de doublon)`);
         btn.disabled = false; btn.textContent = 'Importer';
       }
     });
