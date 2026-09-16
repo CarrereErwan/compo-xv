@@ -187,6 +187,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .form-photo{display:flex;justify-content:center;margin-bottom:16px;}
 .photo-picker{border:none;background:none;padding:0;}
 .photo-picker img,.photo-placeholder{width:84px;height:84px;border-radius:50%;object-fit:cover;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:2rem;border:2px dashed var(--border);}
+.extra-photo-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+.extra-photo{position:relative;width:64px;text-align:center;}
+.extra-photo-thumb{width:56px;height:56px;border-radius:10px;overflow:hidden;background:var(--surface-2);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);margin:0 auto 3px;}
+.extra-photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.extra-photo-label{display:block;font-size:.62rem;color:var(--text-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.extra-photo-remove{position:absolute;top:-6px;right:2px;width:18px;height:18px;border-radius:50%;background:var(--danger);color:var(--danger-contrast);border:2px solid var(--surface);font-size:.6rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;}
 
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);background:#1c2620;color:#fff;padding:.7em 1.2em;border-radius:999px;font-size:.85rem;z-index:30;opacity:0;transition:opacity .25s,transform .25s;box-shadow:var(--shadow);max-width:80vw;text-align:center;}
 .toast.is-visible{opacity:1;transform:translate(-50%,0);}
@@ -385,12 +391,12 @@ async function replayOutbox(){
 }
 
 /* ---------- row <-> app object mappers (snake_case DB <-> camelCase JS) ---------- */
-function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, number:p.number, position:p.position, photo_asset_id:p.photoAssetId, created_at:p.createdAt }; }
-function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, position:r.position, photoAssetId:r.photo_asset_id, createdAt:r.created_at }; }
+function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, number:p.number, position:p.position, photo_asset_id:p.photoAssetId, photos:p.photos||[], created_at:p.createdAt }; }
+function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, position:r.position, photoAssetId:r.photo_asset_id, photos:r.photos||[], createdAt:r.created_at }; }
 function templateToRow(t){ return { id:t.id, group_id:currentGroup.id, name:t.name, category:t.category, bg_asset_id:t.bgAssetId, bg_w:t.bgW, bg_h:t.bgH, slots:t.slots, created_at:t.createdAt }; }
 function rowToTemplate(r){ return { id:r.id, name:r.name, category:r.category, bgAssetId:r.bg_asset_id, bgW:r.bg_w, bgH:r.bg_h, slots:r.slots||[], createdAt:r.created_at }; }
-function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, created_at:p.createdAt, updated_at:p.updatedAt }; }
-function rowToPost(r){ return { id:r.id, name:r.name, opponent:r.opponent, templateId:r.template_id, assignments:r.assignments||{}, captainSlotId:r.captain_slot_id, createdAt:r.created_at, updatedAt:r.updated_at }; }
+function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, photo_choices:p.photoChoices||{}, created_at:p.createdAt, updated_at:p.updatedAt }; }
+function rowToPost(r){ return { id:r.id, name:r.name, opponent:r.opponent, templateId:r.template_id, assignments:r.assignments||{}, captainSlotId:r.captain_slot_id, photoChoices:r.photo_choices||{}, createdAt:r.created_at, updatedAt:r.updated_at }; }
 function logoToRow(l){ return { id:l.id, group_id:currentGroup.id, name:l.name, photo_asset_id:l.photoAssetId, created_at:l.createdAt }; }
 function rowToLogo(r){ return { id:r.id, name:r.name, photoAssetId:r.photo_asset_id, createdAt:r.created_at }; }
 const TO_ROW = { players:playerToRow, templates:templateToRow, posts:postToRow, logos:logoToRow };
@@ -828,8 +834,9 @@ function renderSlotsInCanvas(container, canvasEl, template, mode, extra){
           else { shape.classList.add('is-empty'); shape.innerHTML = `<span class="slot-plus">🛡️</span>`; }
         } else {
           player = val? (state.players.find(p=>p.id===val) || null) : null;
-          if (player && player.photoAssetId){
-            shape.innerHTML = `<img src="${escapeAttr(photoUrl(player.photoAssetId))}" alt="">`;
+          const resolvedPhotoId = player ? resolvePlayerPhotoAssetId(player, template, extra.photoChoices, slot.id) : null;
+          if (player && resolvedPhotoId){
+            shape.innerHTML = `<img src="${escapeAttr(photoUrl(resolvedPhotoId))}" alt="">`;
           } else if (player){
             shape.innerHTML = `<span class="slot-placeholder">👤</span>`;
           } else {
@@ -987,16 +994,31 @@ function rerenderCurrentCanvas(){
     const canvasEl = document.getElementById('compoCanvas');
     const container = document.getElementById('compoSlots');
     if (canvasEl && container){
-      const ids = slotAssignmentPhotoIds(state.compo.template, state.compo.compo.assignments);
+      const ids = slotAssignmentPhotoIds(state.compo.template, state.compo.compo.assignments, state.compo.compo.photoChoices);
       warmPhotoCache(ids).then(()=> renderSlotsInCanvas(container, canvasEl, state.compo.template, 'compo', {
         assignments: state.compo.compo.assignments,
         captainSlotId: state.compo.compo.captainSlotId,
+        photoChoices: state.compo.compo.photoChoices,
         onSlotTap: onCompoSlotTap,
       }));
     }
   }
 }
-function slotAssignmentPhotoIds(template, assignments){
+function resolvePlayerPhotoAssetId(player, template, photoChoices, slotId){
+  const extras = player.photos || [];
+  const chosenId = photoChoices ? photoChoices[slotId] : null;
+  if (chosenId){
+    const chosen = extras.find(p=>p.id===chosenId);
+    if (chosen && chosen.photoAssetId) return chosen.photoAssetId;
+  }
+  const catLabel = CATEGORY_LABELS[template.category];
+  if (catLabel){
+    const match = extras.find(p=>p.label===catLabel && p.photoAssetId);
+    if (match) return match.photoAssetId;
+  }
+  return player.photoAssetId || null;
+}
+function slotAssignmentPhotoIds(template, assignments, photoChoices){
   const ids = [];
   (template.slots||[]).forEach(slot=>{
     const kind = slot.kind || 'photo';
@@ -1005,7 +1027,7 @@ function slotAssignmentPhotoIds(template, assignments){
     if (kind==='logo') ids.push(val);
     else if (kind==='photo'){
       const p = state.players.find(pp=>pp.id===val);
-      if (p && p.photoAssetId) ids.push(p.photoAssetId);
+      if (p) ids.push(resolvePlayerPhotoAssetId(p, template, photoChoices, slot.id));
     }
   });
   return ids;
@@ -1424,78 +1446,130 @@ function openPlayerForm(player){
   const isEdit = !!player;
   let photoAssetId = player && player.photoAssetId || null;
   let pendingPhotoBlob = null;
+  let extraPhotos = (player && player.photos ? player.photos.map(p=>({...p})) : []);
+  const pendingExtraBlobs = {};
   const previewUrl = photoAssetId ? photoUrl(photoAssetId) : null;
+
   openSheet((body)=>{
-    body.innerHTML = `
-      <h3 class="sheet-title">${isEdit? 'Modifier le joueur':'Nouveau joueur'}</h3>
-      <div class="form-photo">
-        <button type="button" class="photo-picker" id="photoPicker">
-          <span id="photoPreviewWrap">${previewUrl? `<img id="photoPreview" src="${escapeAttr(previewUrl)}">` : `<span id="photoPreview" class="photo-placeholder">👤</span>`}</span>
-        </button>
-        <input type="file" accept="image/*" id="photoInput" hidden>
-      </div>
-      <label class="field"><span>Nom</span>
-        <input type="text" id="fName" value="${escapeAttr(player && player.name || '')}" placeholder="Jules Martin">
-      </label>
-      <div class="field-row">
-        <label class="field"><span>Numéro</span>
-          <input type="number" id="fNumber" value="${player && player.number!=null? player.number:''}" min="0" max="99" inputmode="numeric">
+    function extraGalleryHTML(){
+      return extraPhotos.map(p=>{
+        const url = pendingExtraBlobs[p.id] ? URL.createObjectURL(pendingExtraBlobs[p.id]) : (p.photoAssetId? photoUrl(p.photoAssetId) : '');
+        return `<div class="extra-photo" data-extra-id="${escapeAttr(p.id)}">
+          <div class="extra-photo-thumb">${url? `<img src="${escapeAttr(url)}" alt="">`:'<span>👤</span>'}</div>
+          <span class="extra-photo-label">${escapeHTML(p.label)}</span>
+          <button type="button" class="extra-photo-remove" data-remove-extra="${escapeAttr(p.id)}">✕</button>
+        </div>`;
+      }).join('');
+    }
+    function draw(){
+      body.innerHTML = `
+        <h3 class="sheet-title">${isEdit? 'Modifier le joueur':'Nouveau joueur'}</h3>
+        <div class="form-photo">
+          <button type="button" class="photo-picker" id="photoPicker">
+            <span id="photoPreviewWrap">${previewUrl && !pendingPhotoBlob? `<img id="photoPreview" src="${escapeAttr(previewUrl)}">` : (pendingPhotoBlob? `<img id="photoPreview" src="${URL.createObjectURL(pendingPhotoBlob)}">` : `<span id="photoPreview" class="photo-placeholder">👤</span>`)}</span>
+          </button>
+          <input type="file" accept="image/*" id="photoInput" hidden>
+        </div>
+        <p class="sheet-msg" style="text-align:center;margin-top:-8px;">Photo principale (utilisée par défaut)</p>
+        <label class="field"><span>Nom</span>
+          <input type="text" id="fName" value="${escapeAttr(player && player.name || '')}" placeholder="Jules Martin">
         </label>
-        <label class="field"><span>Poste</span>
-          <select id="fPosition">
-            <option value="">—</option>
-            ${POSITIONS.map(pos=>`<option value="${escapeAttr(pos)}" ${player && player.position===pos?'selected':''}>${pos}</option>`).join('')}
-          </select>
-        </label>
-      </div>
-      <div class="sheet-actions">
-        ${isEdit? `<button type="button" class="btn btn-danger" id="btnDelete">Supprimer</button>`:''}
-        <button type="button" class="btn btn-ghost" id="btnCancel">Annuler</button>
-        <button type="button" class="btn btn-accent" id="btnSave">Enregistrer</button>
-      </div>`;
-    body.querySelector('#photoPicker').addEventListener('click', ()=> body.querySelector('#photoInput').click());
-    body.querySelector('#photoInput').addEventListener('change', async (e)=>{
-      const file = e.target.files[0];
-      if (!file) return;
-      const {blob} = await resizeImage(file, 800, 0.85);
-      pendingPhotoBlob = blob;
-      const url = URL.createObjectURL(blob);
-      body.querySelector('#photoPreviewWrap').innerHTML = `<img id="photoPreview" src="${url}">`;
-    });
-    body.querySelector('#btnCancel').addEventListener('click', closeSheet);
-    body.querySelector('#btnDelete')?.addEventListener('click', ()=>{
-      confirmDialog('Supprimer ce joueur ?', 'Il sera retiré des compositions existantes.', async ()=>{
-        await idbDelete('players', player.id);
-        await refreshPlayers();
-        closeSheet();
-        renderEffectifView();
-        toast('Joueur supprimé');
+        <div class="field-row">
+          <label class="field"><span>Numéro</span>
+            <input type="number" id="fNumber" value="${player && player.number!=null? player.number:''}" min="0" max="99" inputmode="numeric">
+          </label>
+          <label class="field"><span>Poste</span>
+            <select id="fPosition">
+              <option value="">—</option>
+              ${POSITIONS.map(pos=>`<option value="${escapeAttr(pos)}" ${player && player.position===pos?'selected':''}>${pos}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <label class="field"><span>Autres photos (utilisées selon le type de publication)</span></label>
+        <div class="extra-photo-grid" id="extraGrid">${extraGalleryHTML()}</div>
+        <div class="chip-row" id="addPhotoChips" style="margin-bottom:16px;">
+          ${Object.entries(CATEGORY_LABELS).map(([k,l])=>`<button type="button" class="chip" data-add-label="${l}">+ Photo ${l}</button>`).join('')}
+        </div>
+        <input type="file" accept="image/*" id="extraPhotoInput" hidden>
+        <div class="sheet-actions">
+          ${isEdit? `<button type="button" class="btn btn-danger" id="btnDelete">Supprimer</button>`:''}
+          <button type="button" class="btn btn-ghost" id="btnCancel">Annuler</button>
+          <button type="button" class="btn btn-accent" id="btnSave">Enregistrer</button>
+        </div>`;
+      body.querySelector('#photoPicker').addEventListener('click', ()=> body.querySelector('#photoInput').click());
+      body.querySelector('#photoInput').addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if (!file) return;
+        const {blob} = await resizeImage(file, 800, 0.85);
+        pendingPhotoBlob = blob;
+        draw();
       });
-    });
-    body.querySelector('#btnSave').addEventListener('click', async ()=>{
-      const name = body.querySelector('#fName').value.trim();
-      if (!name){ toast('Le nom est requis'); return; }
-      const numberVal = body.querySelector('#fNumber').value;
-      const position = body.querySelector('#fPosition').value;
-      const btn = body.querySelector('#btnSave');
-      btn.disabled = true; btn.textContent = 'Enregistrement…';
-      try{
-        if (pendingPhotoBlob){
-          photoAssetId = await storePhoto(pendingPhotoBlob);
+      let pendingLabel = null;
+      body.querySelectorAll('[data-add-label]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          pendingLabel = chip.dataset.addLabel;
+          body.querySelector('#extraPhotoInput').click();
+        });
+      });
+      body.querySelector('#extraPhotoInput').addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file || !pendingLabel) return;
+        const {blob} = await resizeImage(file, 800, 0.85);
+        const tempId = newId();
+        pendingExtraBlobs[tempId] = blob;
+        extraPhotos.push({ id: tempId, label: pendingLabel, photoAssetId: null });
+        draw();
+      });
+      body.querySelectorAll('[data-remove-extra]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.dataset.removeExtra;
+          extraPhotos = extraPhotos.filter(p=>p.id!==id);
+          delete pendingExtraBlobs[id];
+          draw();
+        });
+      });
+      body.querySelector('#btnCancel').addEventListener('click', closeSheet);
+      body.querySelector('#btnDelete')?.addEventListener('click', ()=>{
+        confirmDialog('Supprimer ce joueur ?', 'Il sera retiré des compositions existantes.', async ()=>{
+          await idbDelete('players', player.id);
+          await refreshPlayers();
+          closeSheet();
+          renderEffectifView();
+          toast('Joueur supprimé');
+        });
+      });
+      body.querySelector('#btnSave').addEventListener('click', async ()=>{
+        const name = body.querySelector('#fName').value.trim();
+        if (!name){ toast('Le nom est requis'); return; }
+        const numberVal = body.querySelector('#fNumber').value;
+        const position = body.querySelector('#fPosition').value;
+        const btn = body.querySelector('#btnSave');
+        btn.disabled = true; btn.textContent = 'Enregistrement…';
+        try{
+          if (pendingPhotoBlob){
+            photoAssetId = await storePhoto(pendingPhotoBlob);
+          }
+          for (const p of extraPhotos){
+            if (pendingExtraBlobs[p.id]){
+              p.photoAssetId = await storePhoto(pendingExtraBlobs[p.id]);
+            }
+          }
+          const data = { name, number: numberVal===''?null:Number(numberVal), position: position||null, photoAssetId: photoAssetId||null, photos: extraPhotos.map(p=>({id:p.id, label:p.label, photoAssetId:p.photoAssetId})) };
+          if (isEdit){ await idbUpdate('players', player.id, data); }
+          else { data.id = newId(); data.createdAt = new Date().toISOString(); await idbPut('players', data); }
+          await refreshPlayers();
+          closeSheet();
+          renderEffectifView();
+          toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
+        }catch(err){
+          console.error(err);
+          toast('Erreur, réessaie');
+          btn.disabled = false; btn.textContent = 'Enregistrer';
         }
-        const data = { name, number: numberVal===''?null:Number(numberVal), position: position||null, photoAssetId: photoAssetId||null };
-        if (isEdit){ await idbUpdate('players', player.id, data); }
-        else { data.id = newId(); data.createdAt = new Date().toISOString(); await idbPut('players', data); }
-        await refreshPlayers();
-        closeSheet();
-        renderEffectifView();
-        toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
-      }catch(err){
-        console.error(err);
-        toast('Erreur, réessaie');
-        btn.disabled = false; btn.textContent = 'Enregistrer';
-      }
-    });
+      });
+    }
+    draw();
   });
 }
 
@@ -1571,6 +1645,7 @@ async function duplicateCompo(id){
     templateId: c.templateId,
     assignments: {...(c.assignments||{})},
     captainSlotId: c.captainSlotId||null,
+    photoChoices: {...(c.photoChoices||{})},
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -1605,7 +1680,7 @@ function openNewCompoSheet(){
       const opponent = body.querySelector('#cOpponent').value.trim();
       const templateId = body.querySelector('#cTemplate').value;
       body.querySelector('#cCreate').disabled = true;
-      const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+      const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, photoChoices:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
       await idbPut('posts', data);
       await refreshCompos();
       closeSheet();
@@ -1622,13 +1697,14 @@ function openCompoEditor(id){
   state.compo.compoId = id;
   state.compo.compo = JSON.parse(JSON.stringify(c));
   state.compo.compo.assignments = state.compo.compo.assignments || {};
+  state.compo.compo.photoChoices = state.compo.compo.photoChoices || {};
   state.compo.template = tpl;
   render();
 }
 async function renderCompoEditor(root){
   const c = state.compo.compo;
   const tpl = state.compo.template;
-  const photoIds = [tpl.bgAssetId, ...slotAssignmentPhotoIds(tpl, c.assignments||{})];
+  const photoIds = [tpl.bgAssetId, ...slotAssignmentPhotoIds(tpl, c.assignments||{}, c.photoChoices)];
   await warmPhotoCache(photoIds);
   root.innerHTML = `
     <div class="editor-toolbar">
@@ -1674,6 +1750,7 @@ async function renderCompoEditor(root){
   renderSlotsInCanvas(root.querySelector('#compoSlots'), root.querySelector('#compoCanvas'), tpl, 'compo', {
     assignments: c.assignments,
     captainSlotId: c.captainSlotId,
+    photoChoices: c.photoChoices,
     onSlotTap: onCompoSlotTap,
   });
 }
@@ -1714,7 +1791,7 @@ function openCaptainSheet(){
 async function saveCompo(showToast){
   const c = state.compo.compo;
   if (!c) return;
-  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, updatedAt: new Date().toISOString() });
+  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, photoChoices: c.photoChoices||{}, updatedAt: new Date().toISOString() });
   await refreshCompos();
   if (showToast) toast('Composition enregistrée');
 }
@@ -1835,10 +1912,16 @@ async function openPlayerPickerSheet(slotId){
         closeSheet();
       });
       body.querySelectorAll('[data-pick-player]').forEach(row=>{
-        row.addEventListener('click', ()=>{
+        row.addEventListener('click', async ()=>{
+          const player = state.players.find(p=>p.id===row.dataset.pickPlayer);
           c.assignments[slotId] = row.dataset.pickPlayer;
-          rerenderCurrentCanvas();
-          closeSheet();
+          delete c.photoChoices[slotId];
+          if (player && player.photos && player.photos.length>0){
+            await openPhotoChoiceSheet(player, tpl, slotId);
+          } else {
+            rerenderCurrentCanvas();
+            closeSheet();
+          }
         });
       });
       body.querySelectorAll('[data-role]').forEach(chip=>{
@@ -1857,6 +1940,35 @@ async function openPlayerPickerSheet(slotId){
       }
     }
     draw();
+  });
+}
+async function openPhotoChoiceSheet(player, template, slotId){
+  const c = state.compo.compo;
+  const extras = player.photos || [];
+  await warmPhotoCache([player.photoAssetId, ...extras.map(p=>p.photoAssetId)]);
+  const suggestedLabel = CATEGORY_LABELS[template.category];
+  openSheet((body)=>{
+    const options = [{ id:'', label:'Photo principale', photoAssetId: player.photoAssetId }, ...extras];
+    body.innerHTML = `
+      <h3 class="sheet-title">Quelle photo pour ${escapeHTML(player.name)} ?</h3>
+      <ul class="picker-list">
+        ${options.map(o=>{
+          const url = o.photoAssetId ? photoUrl(o.photoAssetId) : '';
+          const isSuggested = o.label === suggestedLabel;
+          return `<li class="picker-row" data-pick-photo="${escapeAttr(o.id)}">
+            <div class="player-photo player-photo-sm">${url? `<img src="${escapeAttr(url)}" alt="">`:'<span>👤</span>'}</div>
+            <div class="player-info"><div class="player-name">${escapeHTML(o.label)}${isSuggested? ` <span class="picker-tag">suggérée</span>`:''}</div></div>
+          </li>`;
+        }).join('')}
+      </ul>`;
+    body.querySelectorAll('[data-pick-photo]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const id = row.dataset.pickPhoto;
+        if (id) c.photoChoices[slotId] = id; else delete c.photoChoices[slotId];
+        rerenderCurrentCanvas();
+        closeSheet();
+      });
+    });
   });
 }
 function pickerRowHTML(p, isCurrent, isUsedElsewhere){
@@ -2043,9 +2155,10 @@ async function renderCompoCanvasBlob(tpl, c){
     // kind === 'photo'
     const player = state.players.find(p=>p.id===val);
     if (!player) continue;
+    const resolvedPhotoId = resolvePlayerPhotoAssetId(player, tpl, c.photoChoices, slot.id);
 
-    if (player.photoAssetId){
-      const bitmap = await loadBitmapForPhoto(player.photoAssetId);
+    if (resolvedPhotoId){
+      const bitmap = await loadBitmapForPhoto(resolvedPhotoId);
       if (bitmap){
         ctx.save();
         pathForSlot(ctx, slot, cx, cy, r, d);
@@ -2174,7 +2287,10 @@ async function exportAllData(){
       idbGetAll('players'), idbGetAll('templates'), idbGetAll('posts'), idbGetAll('logos'), idbGet('settings','app'),
     ]);
     const photoIds = new Set();
-    players.forEach(p=> p.photoAssetId && photoIds.add(p.photoAssetId));
+    players.forEach(p=>{
+      if (p.photoAssetId) photoIds.add(p.photoAssetId);
+      (p.photos||[]).forEach(ph=> ph.photoAssetId && photoIds.add(ph.photoAssetId));
+    });
     templates.forEach(t=> t.bgAssetId && photoIds.add(t.bgAssetId));
     logos.forEach(l=> l.photoAssetId && photoIds.add(l.photoAssetId));
     const photos = {};
@@ -2241,7 +2357,11 @@ async function importAllData(file){
       idMap[oldId] = newPath;
     }
     const remap = (assetId)=> assetId && idMap[assetId] ? idMap[assetId] : assetId;
-    for (const p of bundle.players||[]) await idbPut('players', {...p, photoAssetId: remap(p.photoAssetId)});
+    for (const p of bundle.players||[]) await idbPut('players', {
+      ...p,
+      photoAssetId: remap(p.photoAssetId),
+      photos: (p.photos||[]).map(ph=>({...ph, photoAssetId: remap(ph.photoAssetId)})),
+    });
     for (const t of bundle.templates||[]) await idbPut('templates', {...t, bgAssetId: remap(t.bgAssetId)});
     for (const l of bundle.logos||[]) await idbPut('logos', {...l, photoAssetId: remap(l.photoAssetId)});
     for (const po of bundle.posts||[]) await idbPut('posts', po);
