@@ -604,6 +604,27 @@ async function idbUpdate(store, key, patch){
   const cur = (await idbGet(store, key)) || {id:key};
   return idbPut(store, {...cur, ...patch});
 }
+// Re-reads a just-written record straight from the server and compares the
+// fields that matter, so a save that silently didn't take (server rejection
+// swallowed somewhere, a stale write racing a fresher one, etc.) shows up as a
+// clear warning instead of a value quietly reverting a moment later.
+async function verifyWrite(store, id, expected, fields){
+  if (!navigator.onLine || !sb || !currentGroup) return true;
+  try{
+    const { data, error } = await sb.from(store).select('*').eq('id', id).eq('group_id', currentGroup.id).maybeSingle();
+    if (error){ console.error('verifyWrite read failed', store, id, error); return true; }
+    if (!data){ console.error('verifyWrite: record missing right after save', store, id); return false; }
+    const actual = FROM_ROW[store](data);
+    for (const f of fields){
+      const a = JSON.stringify(actual[f] ?? null), b = JSON.stringify(expected[f] ?? null);
+      if (a !== b){
+        console.error(`verifyWrite mismatch on ${store}.${f}`, { sent: expected[f], serverHas: actual[f] });
+        return false;
+      }
+    }
+    return true;
+  }catch(err){ console.error('verifyWrite failed', err); return true; }
+}
 
 /* ---------- photo storage: Supabase Storage bucket "photos", cached locally ---------- */
 const photoUrlCache = new Map();
@@ -891,6 +912,7 @@ async function saveClub(name){
 /* ---------- navigation ---------- */
 function switchView(view){
   state.view = view;
+  try{ localStorage.setItem('compoxv_view', view); }catch(err){}
   document.querySelectorAll('.tab').forEach(b=> b.classList.toggle('tab-active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=> v.classList.toggle('active', v.id==='view-'+view));
   els.headerSub.textContent = {compo:'Compositions', effectif:'Effectif', design:'Templates'}[view];
@@ -1878,6 +1900,12 @@ function openPlayerForm(player){
             toast((isEdit? 'Modif enregistrée':'Joueur ajouté') + ' localement — en attente de connexion pour synchroniser');
           } else {
             toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
+            verifyWrite('players', saved.id, saved, ['name','number','positions','photoAssetId']).then(ok=>{
+              if (!ok){
+                toast('⚠ Le serveur n’a pas la même version — retente la modif ou vérifie ta connexion');
+                refreshPlayers().then(()=>{ if (state.view==='effectif') renderEffectifView(); });
+              }
+            });
           }
         }catch(err){
           console.error(err);
@@ -2256,7 +2284,17 @@ async function saveCompo(showToast){
   const saved = await idbPut('posts', {...c});
   const idx = state.compos.findIndex(x=>x.id===c.id);
   if (idx>=0) state.compos[idx] = saved; else state.compos.push(saved);
-  if (showToast) toast(saved._synced===false ? 'Enregistré localement — en attente de connexion' : 'Composition enregistrée');
+  if (showToast){
+    toast(saved._synced===false ? 'Enregistré localement — en attente de connexion' : 'Composition enregistrée');
+    // Only verify on the explicit "Enregistrer" tap, not the silent auto-save
+    // that fires on every slot interaction — a network round-trip there would
+    // undo the latency work done on every single tap.
+    if (saved._synced!==false){
+      verifyWrite('posts', saved.id, saved, ['assignments','captainSlotId','photoChoices','slotOverrides']).then(ok=>{
+        if (!ok) toast('⚠ Le serveur n’a pas la même version — retente ou vérifie ta connexion');
+      });
+    }
+  }
 }
 function onCompoSlotTap(slotId){
   const slot = (state.compo.template.slots||[]).find(s=>s.id===slotId);
@@ -3321,7 +3359,12 @@ async function startApp(){
   els.app.hidden = false;
   sessionValid = true;
   updateOnlineStatus();
-  switchView('compo');
+  let lastView = 'compo';
+  try{
+    const saved = localStorage.getItem('compoxv_view');
+    if (saved && ['compo','effectif','design'].includes(saved)) lastView = saved;
+  }catch(err){}
+  switchView(lastView);
   replayOutbox();
   bindRealtime();
 }
