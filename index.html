@@ -1766,12 +1766,13 @@ function renderEffectifList(){
   const wrap = document.getElementById('efListWrap');
   if (!wrap) return;
   const list = sortedPlayers();
+  const dupIds = new Set(findDuplicatePlayers().flatMap(g=>g.map(p=>p.id)));
   // Render immediately from whatever photos are already cached (placeholders for
   // the rest) instead of blocking the whole list on a network round-trip per
   // photo — then patch images in place as they land, without losing scroll.
   wrap.innerHTML = state.players.length===0 ? emptyState('👥','Aucun joueur','Ajoute les joueurs de ton effectif avec leur photo, leur numéro et leur poste.','Ajouter un joueur','btnEmptyAddPlayer') :
     list.length===0 ? `<p class="hint-banner">Aucun joueur ne correspond à « ${escapeHTML(state.effectif.query)} ».</p>` :
-    `<ul class="player-list">${list.map(playerRowHTML).join('')}</ul>`;
+    `<ul class="player-list">${list.map(p=>playerRowHTML(p, dupIds.has(p.id))).join('')}</ul>`;
   wrap.querySelector('#btnEmptyAddPlayer')?.addEventListener('click', ()=> openPlayerForm());
   wrap.querySelectorAll('[data-edit-player]').forEach(row=>{
     row.addEventListener('click', ()=> openPlayerForm(state.players.find(p=>p.id===row.dataset.editPlayer)));
@@ -1786,14 +1787,14 @@ function renderEffectifList(){
     });
   }).catch(err=> console.error('background photo warm failed', err));
 }
-function playerRowHTML(p){
+function playerRowHTML(p, isDuplicate){
   const photo = photoUrl(p.photoAssetId);
   return `
   <li class="player-row" data-edit-player="${p.id}">
     <div class="player-photo">${photo? `<img src="${escapeAttr(photo)}" alt="">` : '<span>👤</span>'}</div>
     <div class="player-info">
-      <div class="player-name">${escapeHTML(p.name||'Sans nom')}</div>
-      <div class="player-pos">${escapeHTML(playerPositionsText(p))}</div>
+      <div class="player-name">${escapeHTML(p.name||'Sans nom')}${isDuplicate? ` <span class="picker-tag" style="background:var(--danger);color:#fff;">doublon</span>`:''}</div>
+      <div class="player-pos">${escapeHTML(playerPositionsText(p))} <span style="opacity:.45;font-size:.85em;">#${p.id.slice(0,6)}</span></div>
     </div>
     <div class="player-number">${p.number!=null? p.number : '–'}</div>
   </li>`;
