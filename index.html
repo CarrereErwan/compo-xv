@@ -587,9 +587,25 @@ async function idbPut(store, obj){
   }
   return obj;
 }
+async function purgeOutboxFor(store, id){
+  try{
+    const items = await cacheGetAll('outbox');
+    for (const it of items){
+      if (it.store === store && it.payload && it.payload.id === id){
+        await cacheDelete('outbox', it.id);
+      }
+    }
+  }catch(err){ console.error('purgeOutboxFor failed', err); }
+}
 async function idbDelete(store, key){
   await cacheDelete(store, key);
   await ensureSession();
+  // A record being deleted might still have an earlier failed write sitting in
+  // the outbox (e.g. an import that errored out long ago). If we don't clear
+  // it here, that stale write eventually replays and silently resurrects the
+  // exact record we just deleted — this was the root cause of duplicates
+  // reappearing after "Nettoyer automatiquement" + a reload.
+  await purgeOutboxFor(store, key);
   if (navigator.onLine && sb){
     try{
       const { error } = await sb.from(store).delete().eq('id', key);
@@ -1691,10 +1707,12 @@ function renderEffectifView(){
             const [keep, ...remove] = sorted;
             for (const p of remove){
               try{
-                const { error } = await sb.from('players').delete().eq('id', p.id);
-                if (error) throw error;
-                await cacheDelete('players', p.id);
-                removedCount++;
+                // idbDelete (not a raw direct delete) so it also purges any stale
+                // queued write for this player from the offline outbox — otherwise
+                // an old failed write can replay later and resurrect the exact
+                // duplicate we just removed.
+                const synced = await idbDelete('players', p.id);
+                if (synced) removedCount++; else failedCount++;
               }catch(err){
                 console.error('dedupe delete failed for', p.id, err);
                 failedCount++;
@@ -3165,6 +3183,9 @@ async function openDiagnosticSheet(){
       <div class="sheet-actions">
         <button type="button" class="btn btn-secondary btn-block" id="diagRetry">Forcer une reconnexion</button>
       </div>
+      ${outboxCount>0 ? `<div class="sheet-actions">
+        <button type="button" class="btn btn-danger btn-block" id="diagClearOutbox">Vider la file d’attente (${outboxCount})</button>
+      </div>` : ''}
       <div class="sheet-actions">
         <button type="button" class="btn btn-ghost btn-block" id="diagClose">Fermer</button>
       </div>
@@ -3178,6 +3199,21 @@ async function openDiagnosticSheet(){
       hideBusy();
       closeSheet();
       openDiagnosticSheet();
+    });
+    body.querySelector('#diagClearOutbox')?.addEventListener('click', ()=>{
+      confirmDialog(
+        `Vider les ${outboxCount} modification(s) en attente ?`,
+        'À utiliser seulement si une ancienne écriture bloquée fait réapparaître des données déjà supprimées ou modifiées. Toute modification pas encore envoyée au serveur sera définitivement perdue.',
+        async ()=>{
+          try{
+            for (const it of outboxItems) await cacheDelete('outbox', it.id);
+            toast('File d’attente vidée');
+            updateOnlineStatus();
+          }catch(err){ console.error(err); toast('Échec du vidage'); }
+          closeSheet();
+          openDiagnosticSheet();
+        }
+      );
     });
     body.querySelector('#diagClose').addEventListener('click', closeSheet);
   });
