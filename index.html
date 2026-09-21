@@ -1687,10 +1687,12 @@ function renderEffectifView(){
       async ()=>{
         closeSheet();
         showBusy('Vérification…');
+        const log = [];
         try{
           await ensureSession();
           await refreshPlayers();
           const freshDupGroups = findDuplicatePlayers();
+          log.push(`Doublons détectés après rafraîchissement : ${freshDupGroups.length} groupe(s), ${freshDupGroups.reduce((n,g)=>n+g.length,0)} fiche(s) au total.`);
           if (!navigator.onLine || !sb){
             hideBusy();
             toast('Connexion nécessaire pour nettoyer les doublons — réessaie une fois en ligne');
@@ -1705,28 +1707,38 @@ function renderEffectifView(){
               return score(b) - score(a);
             });
             const [keep, ...remove] = sorted;
+            log.push(`« ${keep.name} » : ${sorted.length} fiches, conserve ${keep.id.slice(0,8)} (photo=${!!keep.photoAssetId}, postes=${playerPositions(keep).join('/')||'aucun'})`);
             for (const p of remove){
               try{
-                // idbDelete (not a raw direct delete) so it also purges any stale
-                // queued write for this player from the offline outbox — otherwise
-                // an old failed write can replay later and resurrect the exact
-                // duplicate we just removed.
                 const synced = await idbDelete('players', p.id);
-                if (synced) removedCount++; else failedCount++;
+                if (synced){
+                  removedCount++;
+                  log.push(`  ✓ supprimé ${p.id.slice(0,8)} (synced=true)`);
+                } else {
+                  failedCount++;
+                  log.push(`  ⏳ ${p.id.slice(0,8)} mis en attente hors-ligne (synced=false) — supprimé localement, sera retiré du serveur dès la reconnexion`);
+                }
               }catch(err){
                 console.error('dedupe delete failed for', p.id, err);
                 failedCount++;
+                log.push(`  ✗ ÉCHEC ${p.id.slice(0,8)} : ${(err && (err.message||err.details)) || err}`);
               }
             }
           }
           await refreshPlayers();
-          if (failedCount>0){
-            toast(`${removedCount} supprimé(s), ${failedCount} échec(s) — vérifie ta connexion et réessaie`);
-          } else {
-            toast(`${removedCount} doublon${removedCount>1?'s':''} supprimé${removedCount>1?'s':''}`);
-          }
+          const stillDup = findDuplicatePlayers();
+          log.push(`Après nettoyage : ${state.players.length} joueurs au total, ${stillDup.length} groupe(s) encore en double.`);
+          openSheet((body)=>{
+            body.innerHTML = `
+              <h3 class="sheet-title">Résultat du nettoyage</h3>
+              <textarea readonly rows="14" style="font-family:monospace;font-size:.7rem;width:100%;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:.6em .7em;">${escapeHTML(log.join('\n'))}</textarea>
+              <div class="sheet-actions"><button type="button" class="btn btn-accent btn-block" id="dedupeResultClose">Fermer</button></div>
+            `;
+            body.querySelector('#dedupeResultClose').addEventListener('click', closeSheet);
+          });
         }catch(err){
           console.error(err);
+          log.push('ERREUR : ' + (err && (err.message||err.details)) || String(err));
           toast('Erreur pendant le nettoyage : ' + (err.message||err));
         }finally{
           hideBusy();
