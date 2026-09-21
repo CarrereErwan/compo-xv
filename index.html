@@ -97,7 +97,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .player-photo-sm{width:40px;height:40px;}
 .player-info{flex:1 1 auto;min-width:0;}
 .player-name{font-weight:600;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.player-pos{color:var(--text-muted);font-size:.78rem;}
+.player-pos{color:var(--text-muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .player-number{font-family:var(--font-display);font-weight:700;font-size:1.15rem;color:var(--accent);font-variant-numeric:tabular-nums;min-width:1.6em;text-align:right;}
 
 .compo-checkbox{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:.75rem;font-weight:700;color:var(--accent-contrast);}
@@ -382,14 +382,17 @@ function newId(){
 }
 async function queueOutbox(op, store, payload){
   await cachePut('outbox', { id: newId(), op, store, payload, ts: Date.now() });
+  if (typeof updateOnlineStatus==='function') updateOnlineStatus();
 }
 async function replayOutbox(){
   if (!navigator.onLine || !sb) return;
+  await ensureSession();
   await ensureGroup();
   if (!currentGroup) return;
   let items = [];
   try{ items = await cacheGetAll('outbox'); }catch(err){ return; }
   items.sort((a,b)=>a.ts-b.ts);
+  let stuckCount = 0;
   for (const item of items){
     try{
       if (item.store==='photos'){
@@ -411,15 +414,29 @@ async function replayOutbox(){
       await cacheDelete('outbox', item.id);
     }catch(err){
       console.error('outbox replay failed, will retry later', item, err);
+      // Track repeated failures (e.g. a write rejected by the server for a
+      // reason that a retry alone won't fix, like a missing DB column) so this
+      // shows up as a clear signal in diagnostics instead of silently retrying
+      // forever on every reconnect.
+      item.attempts = (item.attempts||0) + 1;
+      item.lastError = (err && (err.message || err.details)) || String(err);
+      try{ await cachePut('outbox', item); }catch(e2){}
+      if (item.attempts >= 5) stuckCount++;
     }
   }
   await loadAll();
   render();
+  updateOnlineStatus();
+  if (stuckCount>0 && !stuckOutboxWarned){
+    stuckOutboxWarned = true;
+    toast(`${stuckCount} modification${stuckCount>1?'s':''} bloquée${stuckCount>1?'s':''} en attente — vérifie le diagnostic technique`);
+  }
 }
+let stuckOutboxWarned = false;
 
 /* ---------- row <-> app object mappers (snake_case DB <-> camelCase JS) ---------- */
-function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, number:p.number, position:p.position, photo_asset_id:p.photoAssetId, photos:p.photos||[], created_at:p.createdAt }; }
-function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, position:r.position, photoAssetId:r.photo_asset_id, photos:r.photos||[], createdAt:r.created_at }; }
+function playerToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, number:p.number, position:(p.positions&&p.positions[0])||null, positions:p.positions||[], photo_asset_id:p.photoAssetId, photos:p.photos||[], created_at:p.createdAt }; }
+function rowToPlayer(r){ return { id:r.id, name:r.name, number:r.number, positions:(r.positions&&r.positions.length? r.positions : (r.position? [r.position] : [])), photoAssetId:r.photo_asset_id, photos:r.photos||[], createdAt:r.created_at }; }
 function templateToRow(t){ return { id:t.id, group_id:currentGroup.id, name:t.name, category:t.category, bg_asset_id:t.bgAssetId, bg_w:t.bgW, bg_h:t.bgH, slots:t.slots, created_at:t.createdAt }; }
 function rowToTemplate(r){ return { id:r.id, name:r.name, category:r.category, bgAssetId:r.bg_asset_id, bgW:r.bg_w, bgH:r.bg_h, slots:r.slots||[], createdAt:r.created_at }; }
 function postToRow(p){ return { id:p.id, group_id:currentGroup.id, name:p.name, opponent:p.opponent, template_id:p.templateId, assignments:p.assignments, captain_slot_id:p.captainSlotId, photo_choices:p.photoChoices||{}, slot_overrides:p.slotOverrides||{}, created_at:p.createdAt, updated_at:p.updatedAt }; }
@@ -448,8 +465,11 @@ async function ensureSession(){
   return !!currentUser;
 }
 async function ensureGroup(){
-  if (currentGroup) return currentGroup;
+  // Always give the session a chance to refresh first — a mobile browser can
+  // throttle background timers for a long time, so relying on the automatic
+  // background refresh alone leaves currentGroup set but the token stale.
   await ensureSession();
+  if (currentGroup) return currentGroup;
   if (currentUser && navigator.onLine){
     try{ await resolveCurrentGroup(); }catch(err){ console.error('re-resolve group failed', err); }
   }
@@ -462,6 +482,19 @@ async function ensureGroup(){
   if (currentGroup && typeof markSessionValid==='function') markSessionValid();
   return currentGroup;
 }
+async function pendingOutboxInfo(store){
+  const upsertIds = new Set(), deleteIds = new Set();
+  try{
+    const items = await cacheGetAll('outbox');
+    for (const it of items){
+      if (it.store !== store) continue;
+      const id = it.payload && it.payload.id;
+      if (!id) continue;
+      if (it.op === 'delete') deleteIds.add(id); else upsertIds.add(id);
+    }
+  }catch(err){}
+  return { upsertIds, deleteIds };
+}
 async function idbGetAll(store){
   if (store==='settings') return [];
   await ensureSession();
@@ -470,9 +503,19 @@ async function idbGetAll(store){
     try{
       const { data, error } = await sb.from(store).select('*').eq('group_id', currentGroup.id);
       if (error) throw error;
-      const rows = data.map(FROM_ROW[store]);
-      for (const r of rows) await cachePut(store, r);
-      return rows;
+      // Records with a write still queued in the outbox haven't reached the
+      // server yet — trust the local (just-edited) version instead of
+      // overwriting it with the stale row the server just returned.
+      const { upsertIds, deleteIds } = await pendingOutboxInfo(store);
+      const serverRows = data.map(FROM_ROW[store]).filter(r => !deleteIds.has(r.id));
+      const freshRows = serverRows.filter(r => !upsertIds.has(r.id));
+      for (const r of freshRows) await cachePut(store, r);
+      if (upsertIds.size){
+        const cachedAll = await cacheGetAll(store);
+        const pendingRows = cachedAll.filter(r => upsertIds.has(r.id));
+        return [...freshRows, ...pendingRows];
+      }
+      return freshRows;
     }catch(err){ console.error('fetch failed, using cache', store, err); }
   }
   return cacheGetAll(store);
@@ -494,6 +537,9 @@ async function idbGet(store, key){
   }
   if (navigator.onLine && sb && currentGroup){
     try{
+      const { upsertIds, deleteIds } = await pendingOutboxInfo(store);
+      if (deleteIds.has(key)) return null;
+      if (upsertIds.has(key)) return cacheGet(store, key);
       const { data, error } = await sb.from(store).select('*').eq('id', key).eq('group_id', currentGroup.id).maybeSingle();
       if (error) throw error;
       if (!data) return null;
@@ -515,9 +561,11 @@ async function idbPut(store, obj){
       try{
         const { error } = await sb.from('group_settings').upsert(row);
         if (error) throw error;
-      }catch(err){ await queueOutbox('upsert','group_settings', row); }
+        obj._synced = true;
+      }catch(err){ await queueOutbox('upsert','group_settings', row); obj._synced = false; }
     } else {
       await queueOutbox('upsert','group_settings', row);
+      obj._synced = false;
     }
     return obj;
   }
@@ -527,12 +575,15 @@ async function idbPut(store, obj){
     try{
       const { error } = await sb.from(store).upsert(row);
       if (error) throw error;
+      obj._synced = true;
     }catch(err){
       console.error('write failed, queued for sync', store, err);
       await queueOutbox('upsert', store, row);
+      obj._synced = false;
     }
   } else {
     await queueOutbox('upsert', store, row);
+    obj._synced = false;
   }
   return obj;
 }
@@ -543,10 +594,11 @@ async function idbDelete(store, key){
     try{
       const { error } = await sb.from(store).delete().eq('id', key);
       if (error) throw error;
-      return;
+      return true;
     }catch(err){ console.error(err); }
   }
   await queueOutbox('delete', store, {id:key});
+  return false;
 }
 async function idbUpdate(store, key, patch){
   const cur = (await idbGet(store, key)) || {id:key};
@@ -563,33 +615,32 @@ async function storePhoto(blob){
   const path = `${currentGroup.id}/${newId()}.${ext}`;
   await cachePut('photos', {id:path, blob});
   photoUrlCache.set(path, URL.createObjectURL(blob));
-  if (navigator.onLine && sb){
-    try{
-      const { error } = await sb.storage.from('photos').upload(path, blob, {contentType: blob.type||'image/jpeg', upsert:true});
-      if (error) throw error;
-    }catch(err){
-      console.error('photo upload failed, queued', err);
-      await queueOutbox('upload','photos', {path});
-    }
-  } else {
-    await queueOutbox('upload','photos', {path});
-  }
+  // Queue the upload durably first (so it survives the app closing mid-upload),
+  // then attempt it right away in the background instead of making the caller
+  // wait on the network round-trip — the local blob is already usable, and the
+  // record referencing this path can be saved immediately.
+  await queueOutbox('upload','photos', {path});
+  uploadPhotoNow(path, blob);
   return path;
+}
+async function uploadPhotoNow(path, blob){
+  if (!(navigator.onLine && sb)) return;
+  try{
+    const { error } = await sb.storage.from('photos').upload(path, blob, {contentType: blob.type||'image/jpeg', upsert:true});
+    if (error) throw error;
+    const items = await cacheGetAll('outbox').catch(()=>[]);
+    const match = items.find(it=> it.store==='photos' && it.payload && it.payload.path===path);
+    if (match) await cacheDelete('outbox', match.id);
+    updateOnlineStatus();
+  }catch(err){
+    console.error('photo upload failed, will retry via outbox', err);
+  }
 }
 async function restorePhotoBlob(path, blob){
   await cachePut('photos', {id:path, blob});
   photoUrlCache.set(path, URL.createObjectURL(blob));
-  if (navigator.onLine && sb){
-    try{
-      const { error } = await sb.storage.from('photos').upload(path, blob, {contentType: blob.type||'image/jpeg', upsert:true});
-      if (error) throw error;
-    }catch(err){
-      console.error('photo restore upload failed, queued', err);
-      await queueOutbox('upload','photos', {path});
-    }
-  } else {
-    await queueOutbox('upload','photos', {path});
-  }
+  await queueOutbox('upload','photos', {path});
+  uploadPhotoNow(path, blob);
 }
 async function getPhotoBlobById(path){
   const cached = await cacheGet('photos', path);
@@ -620,6 +671,12 @@ async function loadBitmapForPhoto(id){
 
 /* ---------- app state ---------- */
 const POSITIONS = ["Pilier","Talonneur","Deuxième ligne","Troisième ligne aile","Troisième ligne centre","Demi de mêlée","Demi d'ouverture","Ailier","Centre","Arrière","Remplaçant","Staff"];
+function playerPositions(p){
+  if (p.positions && p.positions.length) return p.positions;
+  if (p.position) return [p.position];
+  return [];
+}
+function playerPositionsText(p){ return playerPositions(p).join(', '); }
 const IG_FORMATS = {
   square:   { label:'Carré · 1080×1080',   w:1080, h:1080 },
   portrait: { label:'Portrait · 1080×1350', w:1080, h:1350 },
@@ -1086,7 +1143,7 @@ function bindCompoSlotAdjust(wrap, canvasEl, post, slot){
         ov.x = curX; ov.y = curY; ov.w = curW;
         if (isText) ov.h = curH;
         post.slotOverrides[slot.id] = ov;
-        saveCompo(false);
+        saveCompo(false).catch(err=> console.error('saveCompo failed', err));
       }
     }
     wrap.addEventListener('pointermove', move);
@@ -1140,7 +1197,7 @@ function rerenderCurrentCanvas(){
 }
 function rerenderAndSaveCompo(){
   rerenderCurrentCanvas();
-  saveCompo(false);
+  saveCompo(false).catch(err=> console.error('saveCompo failed', err));
 }
 function effectiveSlot(slot, overrides){
   const o = overrides && overrides[slot.id];
@@ -1182,8 +1239,18 @@ function slotAssignmentPhotoIds(template, assignments, photoChoices){
   return ids;
 }
 
+async function persistTemplate(template){
+  // template is a full clone of the record (see openTemplateEditor), so write it
+  // straight through and patch state.templates from the result — avoids the
+  // get-then-put-then-refetch-everything chain that made every single edit in
+  // the Design editor wait on up to 3 sequential network round-trips.
+  const saved = await idbPut('templates', {...template});
+  const idx = state.templates.findIndex(t=>t.id===template.id);
+  if (idx>=0) state.templates[idx] = saved; else state.templates.push(saved);
+  return saved;
+}
 function persistSlots(template){
-  idbUpdate('templates', template.id, {slots: template.slots}).then(()=> refreshTemplates());
+  persistTemplate(template).catch(err=> console.error('persistSlots failed', err));
 }
 
 function addSlot(template, x, y){
@@ -1325,7 +1392,6 @@ async function renderDesignView(){
     return;
   }
   const list = [...state.templates].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
-  await warmPhotoCache(list.map(t=>t.bgAssetId));
   root.innerHTML = `
     <div class="view-toolbar">
       <h2>Templates</h2>
@@ -1349,13 +1415,22 @@ async function renderDesignView(){
       const id = btn.dataset.delTemplate;
       confirmDialog('Supprimer ce template ?', 'Les compositions qui l’utilisent resteront mais ne pourront plus être modifiées.', async ()=>{
         await idbDelete('templates', id);
-        await refreshTemplates();
+        state.templates = state.templates.filter(t=>t.id!==id);
         closeSheet();
         renderDesignView();
         toast('Template supprimé');
       });
     });
   });
+  warmPhotoCache(list.map(t=>t.bgAssetId)).then(()=>{
+    root.querySelectorAll('[data-open-template]').forEach(card=>{
+      const thumbEl = card.querySelector('.template-thumb');
+      if (!thumbEl || thumbEl.querySelector('img')) return;
+      const t = list.find(x=>x.id===card.dataset.openTemplate);
+      const url = t ? photoUrl(t.bgAssetId) : '';
+      if (url) thumbEl.insertAdjacentHTML('afterbegin', `<img src="${escapeAttr(url)}" alt="">`);
+    });
+  }).catch(err=> console.error('background photo warm failed', err));
 }
 const CATEGORY_LABELS = { compo:'Compo', resultat:'Résultat', autre:'Autre' };
 function templateCardHTML(t){
@@ -1429,8 +1504,8 @@ async function createTemplateFromFile(file, format, category){
       : await resizeImage(file, 2000, 0.88);
     const photoId = await storePhoto(result.blob);
     const data = { id:newId(), name:'Nouveau template', category, bgAssetId:photoId, bgW:result.width, bgH:result.height, slots:[], createdAt:new Date().toISOString() };
-    await idbPut('templates', data);
-    await refreshTemplates();
+    const saved = await idbPut('templates', data);
+    state.templates.push(saved);
     openTemplateEditor(data.id);
   }catch(err){
     console.error(err);
@@ -1443,8 +1518,8 @@ async function duplicateTemplate(id){
   const t = state.templates.find(x=>x.id===id);
   if (!t) return;
   const data = { id:newId(), name:(t.name||'Template')+' (copie)', category:t.category||'compo', bgAssetId:t.bgAssetId, bgW:t.bgW, bgH:t.bgH, slots:(t.slots||[]).map(s=>({...s})), createdAt:new Date().toISOString() };
-  await idbPut('templates', data);
-  await refreshTemplates();
+  const saved = await idbPut('templates', data);
+  state.templates.push(saved);
   renderDesignView();
   toast('Template dupliqué');
 }
@@ -1488,8 +1563,7 @@ async function renderDesignEditor(root){
   });
   root.querySelector('#tplName').addEventListener('change', async (e)=>{
     t.name = e.target.value.trim() || 'Sans nom';
-    await idbUpdate('templates', t.id, {name:t.name});
-    await refreshTemplates();
+    try{ await persistTemplate(t); }catch(err){ console.error('persistTemplate failed', err); }
   });
   root.querySelector('#btnSnapToggle').addEventListener('click', ()=>{
     state.design.snapEnabled = !state.design.snapEnabled;
@@ -1506,8 +1580,7 @@ async function renderDesignEditor(root){
       const result = (t.bgW && t.bgH) ? await resizeImageToExact(file, t.bgW, t.bgH, 0.88) : await resizeImage(file, 2000, 0.88);
       const photoId = await storePhoto(result.blob);
       t.bgAssetId = photoId; t.bgW = result.width; t.bgH = result.height;
-      await idbUpdate('templates', t.id, {bgAssetId:t.bgAssetId, bgW:result.width, bgH:result.height});
-      await refreshTemplates();
+      await persistTemplate(t);
       renderDesignEditor(root);
     }catch(err){
       console.error(err);
@@ -1533,7 +1606,7 @@ function sortedPlayers(){
   }
   const q = state.effectif.query.trim().toLowerCase();
   if (!q) return list;
-  return list.filter(p=> (String(p.name)+' '+(p.position||'')).toLowerCase().includes(q));
+  return list.filter(p=> (String(p.name)+' '+playerPositionsText(p)).toLowerCase().includes(q));
 }
 function findDuplicatePlayers(){
   const groups = new Map();
@@ -1590,7 +1663,7 @@ function renderEffectifView(){
           showBusy('Nettoyage…');
           for (const group of freshDupGroups){
             const sorted = [...group].sort((a,b)=>{
-              const score = p => (p.photoAssetId?2:0) + (p.position?1:0);
+              const score = p => (p.photoAssetId?2:0) + (playerPositions(p).length?1:0);
               return score(b) - score(a);
             });
             const [keep, ...remove] = sorted;
@@ -1637,11 +1710,13 @@ function renderEffectifView(){
   });
   renderEffectifList();
 }
-async function renderEffectifList(){
+function renderEffectifList(){
   const wrap = document.getElementById('efListWrap');
   if (!wrap) return;
   const list = sortedPlayers();
-  await warmPhotoCache(list.map(p=>p.photoAssetId));
+  // Render immediately from whatever photos are already cached (placeholders for
+  // the rest) instead of blocking the whole list on a network round-trip per
+  // photo — then patch images in place as they land, without losing scroll.
   wrap.innerHTML = state.players.length===0 ? emptyState('👥','Aucun joueur','Ajoute les joueurs de ton effectif avec leur photo, leur numéro et leur poste.','Ajouter un joueur','btnEmptyAddPlayer') :
     list.length===0 ? `<p class="hint-banner">Aucun joueur ne correspond à « ${escapeHTML(state.effectif.query)} ».</p>` :
     `<ul class="player-list">${list.map(playerRowHTML).join('')}</ul>`;
@@ -1649,6 +1724,15 @@ async function renderEffectifList(){
   wrap.querySelectorAll('[data-edit-player]').forEach(row=>{
     row.addEventListener('click', ()=> openPlayerForm(state.players.find(p=>p.id===row.dataset.editPlayer)));
   });
+  warmPhotoCache(list.map(p=>p.photoAssetId)).then(()=>{
+    wrap.querySelectorAll('[data-edit-player]').forEach(row=>{
+      const photoEl = row.querySelector('.player-photo');
+      if (!photoEl || photoEl.querySelector('img')) return;
+      const player = list.find(p=>p.id===row.dataset.editPlayer);
+      const url = player ? photoUrl(player.photoAssetId) : '';
+      if (url) photoEl.innerHTML = `<img src="${escapeAttr(url)}" alt="">`;
+    });
+  }).catch(err=> console.error('background photo warm failed', err));
 }
 function playerRowHTML(p){
   const photo = photoUrl(p.photoAssetId);
@@ -1657,7 +1741,7 @@ function playerRowHTML(p){
     <div class="player-photo">${photo? `<img src="${escapeAttr(photo)}" alt="">` : '<span>👤</span>'}</div>
     <div class="player-info">
       <div class="player-name">${escapeHTML(p.name||'Sans nom')}</div>
-      <div class="player-pos">${escapeHTML(p.position||'')}</div>
+      <div class="player-pos">${escapeHTML(playerPositionsText(p))}</div>
     </div>
     <div class="player-number">${p.number!=null? p.number : '–'}</div>
   </li>`;
@@ -1667,6 +1751,7 @@ function openPlayerForm(player){
   let photoAssetId = player && player.photoAssetId || null;
   let pendingPhotoBlob = null;
   let extraPhotos = (player && player.photos ? player.photos.map(p=>({...p})) : []);
+  let selectedPositions = player ? [...playerPositions(player)] : [];
   const pendingExtraBlobs = {};
   const previewUrl = photoAssetId ? photoUrl(photoAssetId) : null;
 
@@ -1694,16 +1779,12 @@ function openPlayerForm(player){
         <label class="field"><span>Nom</span>
           <input type="text" id="fName" value="${escapeAttr(player && player.name || '')}" placeholder="Jules Martin">
         </label>
-        <div class="field-row">
-          <label class="field"><span>Numéro</span>
-            <input type="number" id="fNumber" value="${player && player.number!=null? player.number:''}" min="0" max="99" inputmode="numeric">
-          </label>
-          <label class="field"><span>Poste</span>
-            <select id="fPosition">
-              <option value="">—</option>
-              ${POSITIONS.map(pos=>`<option value="${escapeAttr(pos)}" ${player && player.position===pos?'selected':''}>${pos}</option>`).join('')}
-            </select>
-          </label>
+        <label class="field"><span>Numéro</span>
+          <input type="number" id="fNumber" value="${player && player.number!=null? player.number:''}" min="0" max="99" inputmode="numeric" style="max-width:120px;">
+        </label>
+        <label class="field"><span>Poste(s) — plusieurs possibles</span></label>
+        <div class="chip-row" id="posChips" style="margin-bottom:16px;flex-wrap:wrap;overflow-x:visible;">
+          ${POSITIONS.map(pos=>`<button type="button" class="chip ${selectedPositions.includes(pos)?'chip-active':''}" data-pos="${escapeAttr(pos)}">${escapeHTML(pos)}</button>`).join('')}
         </div>
         <label class="field"><span>Autres photos (utilisées selon le type de publication)</span></label>
         <div class="extra-photo-grid" id="extraGrid">${extraGalleryHTML()}</div>
@@ -1716,6 +1797,14 @@ function openPlayerForm(player){
           <button type="button" class="btn btn-ghost" id="btnCancel">Annuler</button>
           <button type="button" class="btn btn-accent" id="btnSave">Enregistrer</button>
         </div>`;
+      body.querySelectorAll('[data-pos]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const pos = chip.dataset.pos;
+          const idx = selectedPositions.indexOf(pos);
+          if (idx>=0) selectedPositions.splice(idx,1); else selectedPositions.push(pos);
+          draw();
+        });
+      });
       body.querySelector('#photoPicker').addEventListener('click', ()=> body.querySelector('#photoInput').click());
       body.querySelector('#photoInput').addEventListener('change', async (e)=>{
         const file = e.target.files[0];
@@ -1752,18 +1841,17 @@ function openPlayerForm(player){
       body.querySelector('#btnCancel').addEventListener('click', closeSheet);
       body.querySelector('#btnDelete')?.addEventListener('click', ()=>{
         confirmDialog('Supprimer ce joueur ?', 'Il sera retiré des compositions existantes.', async ()=>{
-          await idbDelete('players', player.id);
-          await refreshPlayers();
+          const synced = await idbDelete('players', player.id);
+          state.players = state.players.filter(p=>p.id!==player.id);
           closeSheet();
           renderEffectifView();
-          toast('Joueur supprimé');
+          toast(synced ? 'Joueur supprimé' : 'Joueur supprimé localement — en attente de connexion pour synchroniser');
         });
       });
       body.querySelector('#btnSave').addEventListener('click', async ()=>{
         const name = body.querySelector('#fName').value.trim();
         if (!name){ toast('Le nom est requis'); return; }
         const numberVal = body.querySelector('#fNumber').value;
-        const position = body.querySelector('#fPosition').value;
         const btn = body.querySelector('#btnSave');
         btn.disabled = true; btn.textContent = 'Enregistrement…';
         try{
@@ -1775,13 +1863,22 @@ function openPlayerForm(player){
               p.photoAssetId = await storePhoto(pendingExtraBlobs[p.id]);
             }
           }
-          const data = { name, number: numberVal===''?null:Number(numberVal), position: position||null, photoAssetId: photoAssetId||null, photos: extraPhotos.map(p=>({id:p.id, label:p.label, photoAssetId:p.photoAssetId})) };
-          if (isEdit){ await idbUpdate('players', player.id, data); }
-          else { data.id = newId(); data.createdAt = new Date().toISOString(); await idbPut('players', data); }
-          await refreshPlayers();
+          const data = { name, number: numberVal===''?null:Number(numberVal), positions: [...selectedPositions], photoAssetId: photoAssetId||null, photos: extraPhotos.map(p=>({id:p.id, label:p.label, photoAssetId:p.photoAssetId})) };
+          let saved;
+          // player already holds the full current record in memory, so merge and
+          // write it directly instead of idbUpdate's get-then-put — and patch
+          // state.players locally instead of a full refreshPlayers() re-fetch.
+          if (isEdit){ saved = await idbPut('players', {...player, ...data}); }
+          else { data.id = newId(); data.createdAt = new Date().toISOString(); saved = await idbPut('players', data); }
+          const idx = state.players.findIndex(x=>x.id===saved.id);
+          if (idx>=0) state.players[idx] = saved; else state.players.push(saved);
           closeSheet();
           renderEffectifView();
-          toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
+          if (saved && saved._synced === false){
+            toast((isEdit? 'Modif enregistrée':'Joueur ajouté') + ' localement — en attente de connexion pour synchroniser');
+          } else {
+            toast(isEdit? 'Joueur mis à jour':'Joueur ajouté');
+          }
         }catch(err){
           console.error(err);
           toast('Erreur, réessaie');
@@ -1804,19 +1901,20 @@ function parsePlayerLine(line){
   if (numMatch){ number = Number(numMatch[1]); rest = numMatch[2].trim(); }
   const name = rest.trim();
   if (!name) return null;
-  let position = null;
+  let positions = [];
   if (positionText){
-    const found = POSITIONS.find(p=> p.toLowerCase()===positionText.toLowerCase());
-    position = found || null;
+    positions = positionText.split(/[\/+&]|\s+ou\s+/i).map(s=>s.trim()).filter(Boolean)
+      .map(s=> POSITIONS.find(p=> p.toLowerCase()===s.toLowerCase()))
+      .filter(Boolean);
   }
-  return { name, number, position };
+  return { name, number, positions };
 }
 function openImportPlayersSheet(){
   openSheet((body)=>{
     body.innerHTML = `
       <h3 class="sheet-title">Importer une liste de joueurs</h3>
-      <p class="sheet-msg" style="margin-top:0;">Un joueur par ligne. Formats acceptés :</p>
-      <p class="sheet-msg" style="margin-top:-10px;font-family:var(--font-display);">9 Jules Martin, Demi de mêlée<br>Jules Martin<br>12. Paul Durand - Centre</p>
+      <p class="sheet-msg" style="margin-top:0;">Un joueur par ligne. Plusieurs postes possibles (séparés par /). Formats acceptés :</p>
+      <p class="sheet-msg" style="margin-top:-10px;font-family:var(--font-display);">9 Jules Martin, Demi de mêlée<br>Jules Martin<br>12. Paul Durand - Pilier/Talonneur</p>
       <label class="field"><span>Liste</span>
         <textarea id="importText" rows="10" placeholder="9 Jules Martin, Demi de mêlée
 10 Paul Durand, Ouverture
@@ -1842,22 +1940,25 @@ Sacha Petit"></textarea>
       const btn = body.querySelector('#importSubmit');
       btn.disabled = true; btn.textContent = 'Import…';
       const existingNames = new Set(state.players.map(p=> String(p.name||'').trim().toLowerCase()));
-      let created = 0, skipped = 0;
+      let created = 0, skipped = 0, pending = 0;
       try{
         for (const p of parsed){
           const key = p.name.trim().toLowerCase();
           if (existingNames.has(key)){ skipped++; continue; }
-          await idbPut('players', {
-            id: newId(), name: p.name, number: p.number, position: p.position,
+          const saved = await idbPut('players', {
+            id: newId(), name: p.name, number: p.number, positions: p.positions||[],
             photoAssetId: null, photos: [], createdAt: new Date().toISOString(),
           });
+          if (saved && saved._synced === false) pending++;
+          state.players.push(saved);
           existingNames.add(key);
           created++;
         }
-        await refreshPlayers();
         closeSheet();
         renderEffectifView();
-        toast(`${created} joueur${created>1?'s':''} ajouté${created>1?'s':''}` + (skipped? `, ${skipped} déjà présent${skipped>1?'s':''} ignoré${skipped>1?'s':''}` : ''));
+        toast(`${created} joueur${created>1?'s':''} ajouté${created>1?'s':''}`
+          + (skipped? `, ${skipped} déjà présent${skipped>1?'s':''} ignoré${skipped>1?'s':''}` : '')
+          + (pending? ` — ${pending} en attente de connexion pour synchroniser` : ''));
       }catch(err){
         console.error(err);
         await refreshPlayers();
@@ -1876,10 +1977,6 @@ async function renderCompoView(){
     return;
   }
   const list = [...state.compos].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
-  await warmPhotoCache(list.map(c=>{
-    const tpl = state.templates.find(t=>t.id===c.templateId);
-    return tpl ? tpl.bgAssetId : null;
-  }));
   const selectMode = state.compo.selectMode;
   root.innerHTML = `
     <div class="view-toolbar">
@@ -1933,13 +2030,27 @@ async function renderCompoView(){
       const id = btn.dataset.delCompo;
       confirmDialog('Supprimer cette composition ?', '', async ()=>{
         await idbDelete('posts', id);
-        await refreshCompos();
+        state.compos = state.compos.filter(c=>c.id!==id);
         closeSheet();
         renderCompoView();
         toast('Composition supprimée');
       });
     });
   });
+  warmPhotoCache(list.map(c=>{
+    const tpl = state.templates.find(t=>t.id===c.templateId);
+    return tpl ? tpl.bgAssetId : null;
+  })).then(()=>{
+    root.querySelectorAll('.compo-row').forEach(row=>{
+      const thumbEl = row.querySelector('.compo-thumb');
+      if (!thumbEl || thumbEl.querySelector('img')) return;
+      const id = row.dataset.openCompo || row.dataset.selectCompo;
+      const c = list.find(x=>x.id===id);
+      const tpl = c && state.templates.find(t=>t.id===c.templateId);
+      const url = tpl && tpl.bgAssetId ? photoUrl(tpl.bgAssetId) : '';
+      if (url) thumbEl.innerHTML = `<img src="${escapeAttr(url)}" alt="">`;
+    });
+  }).catch(err=> console.error('background photo warm failed', err));
 }
 function compoRowHTML(c, selectMode, isSelected){
   const tpl = state.templates.find(t=>t.id===c.templateId);
@@ -1973,8 +2084,8 @@ async function duplicateCompo(id){
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  await idbPut('posts', data);
-  await refreshCompos();
+  const saved = await idbPut('posts', data);
+  state.compos.push(saved);
   renderCompoView();
   toast('Composition dupliquée');
 }
@@ -2005,8 +2116,8 @@ function openNewCompoSheet(){
       const templateId = body.querySelector('#cTemplate').value;
       body.querySelector('#cCreate').disabled = true;
       const data = { id:newId(), name, opponent: opponent||null, templateId, assignments:{}, photoChoices:{}, slotOverrides:{}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
-      await idbPut('posts', data);
-      await refreshCompos();
+      const saved = await idbPut('posts', data);
+      state.compos.push(saved);
       closeSheet();
       openCompoEditor(data.id);
     });
@@ -2055,7 +2166,7 @@ async function renderCompoEditor(root){
     </div>
   `;
   root.querySelector('#btnBack').addEventListener('click', async ()=>{
-    await saveCompo(false);
+    try{ await saveCompo(false); }catch(err){ console.error('saveCompo failed', err); }
     state.compo.subview = 'list';
     state.compo.compo = null;
     state.compo.template = null;
@@ -2063,7 +2174,7 @@ async function renderCompoEditor(root){
   });
   root.querySelector('#compoName').addEventListener('change', (e)=>{
     c.name = e.target.value.trim() || 'Sans nom';
-    saveCompo(false);
+    saveCompo(false).catch(err=> console.error('saveCompo failed', err));
   });
   root.querySelector('#btnClearCompo').addEventListener('click', ()=>{
     confirmDialog('Vider cette composition ?', 'Tous les emplacements seront libérés.', ()=>{
@@ -2080,14 +2191,14 @@ async function renderCompoEditor(root){
     e.preventDefault();
     confirmDialog('Réinitialiser la mise en page ?', 'Les emplacements repasseront à leur taille et position d’origine (définies dans le template).', ()=>{
       c.slotOverrides = {};
-      saveCompo(false);
+      saveCompo(false).catch(err=> console.error('saveCompo failed', err));
       closeSheet();
       rerenderCurrentCanvas();
     });
   });
   root.querySelector('#btnCaptain').addEventListener('click', ()=> openCaptainSheet());
   root.querySelector('#btnCaptions').addEventListener('click', ()=> openCaptionSheet());
-  root.querySelector('#btnSaveCompo').addEventListener('click', ()=> saveCompo(true));
+  root.querySelector('#btnSaveCompo').addEventListener('click', ()=> saveCompo(true).catch(err=>{ console.error('saveCompo failed', err); toast('Échec de l’enregistrement, réessaie'); }));
   root.querySelector('#btnExportCompo').addEventListener('click', exportCompo);
 
   renderSlotsInCanvas(root.querySelector('#compoSlots'), root.querySelector('#compoCanvas'), tpl, 'compo', {
@@ -2137,9 +2248,15 @@ function openCaptainSheet(){
 async function saveCompo(showToast){
   const c = state.compo.compo;
   if (!c) return;
-  await idbUpdate('posts', c.id, { name: c.name, opponent: c.opponent||null, assignments: c.assignments, captainSlotId: c.captainSlotId||null, photoChoices: c.photoChoices||{}, slotOverrides: c.slotOverrides||{}, updatedAt: new Date().toISOString() });
-  await refreshCompos();
-  if (showToast) toast('Composition enregistrée');
+  // c is already a full clone of the post (id/templateId/createdAt included), so
+  // write it straight through and patch local state from the result instead of
+  // doing a get-then-put (idbUpdate) followed by a full list re-fetch — that
+  // chain meant up to 3 sequential network round-trips for a single tap.
+  c.updatedAt = new Date().toISOString();
+  const saved = await idbPut('posts', {...c});
+  const idx = state.compos.findIndex(x=>x.id===c.id);
+  if (idx>=0) state.compos[idx] = saved; else state.compos.push(saved);
+  if (showToast) toast(saved._synced===false ? 'Enregistré localement — en attente de connexion' : 'Composition enregistrée');
 }
 function onCompoSlotTap(slotId){
   const slot = (state.compo.template.slots||[]).find(s=>s.id===slotId);
@@ -2177,35 +2294,61 @@ function openTextValueSheet(slotId){
 async function openLogoPickerSheet(slotId){
   const c = state.compo.compo;
   const currentLogoId = c.assignments[slotId];
-  const logos = await idbGetAll('logos');
+  // Draw instantly from the local cache (no network wait to even open the sheet),
+  // then quietly refresh from the server and redraw only if something changed.
+  let logos = await cacheGetAll('logos').catch(()=>[]);
   logos.sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
-  await warmPhotoCache(logos.map(l=>l.photoAssetId));
+  warmPhotoCache(logos.map(l=>l.photoAssetId));
   openSheet((body)=>{
-    body.innerHTML = `
-      <h3 class="sheet-title">Logo d’équipe</h3>
-      ${currentLogoId? `<button type="button" class="btn btn-ghost btn-block" id="logoClear" style="margin-bottom:12px;">Retirer le logo</button>`:''}
-      <button type="button" class="btn btn-accent btn-block" id="logoNew" style="margin-bottom:14px;">+ Importer un nouveau logo</button>
-      <input type="file" accept="image/*" id="logoFile" hidden>
-      ${logos.length? `<ul class="picker-list">${logos.map(l=>`
-        <li class="picker-row ${l.photoAssetId===currentLogoId?'is-current':''}" data-pick-logo="${l.photoAssetId}">
-          <div class="player-photo player-photo-sm">${photoUrl(l.photoAssetId)? `<img src="${escapeAttr(photoUrl(l.photoAssetId))}" alt="">`:'🛡️'}</div>
-          <div class="player-info"><div class="player-name">${escapeHTML(l.name||'Logo')}</div></div>
-        </li>`).join('')}</ul>` : `<p class="sheet-msg">Aucun logo importé pour l’instant.</p>`}
-    `;
-    body.querySelector('#logoClear')?.addEventListener('click', ()=>{
-      delete c.assignments[slotId];
-      rerenderAndSaveCompo();
-      closeSheet();
-    });
-    body.querySelectorAll('[data-pick-logo]').forEach(row=>{
-      row.addEventListener('click', ()=>{
-        c.assignments[slotId] = row.dataset.pickLogo;
+    function draw(){
+      body.innerHTML = `
+        <h3 class="sheet-title">Logo d’équipe</h3>
+        ${currentLogoId? `<button type="button" class="btn btn-ghost btn-block" id="logoClear" style="margin-bottom:12px;">Retirer le logo</button>`:''}
+        <button type="button" class="btn btn-accent btn-block" id="logoNew" style="margin-bottom:14px;">+ Importer un nouveau logo</button>
+        <input type="file" accept="image/*" id="logoFile" hidden>
+        ${logos.length? `<ul class="picker-list">${logos.map(l=>`
+          <li class="picker-row ${l.photoAssetId===currentLogoId?'is-current':''}" data-pick-logo="${l.photoAssetId}">
+            <div class="player-photo player-photo-sm">${photoUrl(l.photoAssetId)? `<img src="${escapeAttr(photoUrl(l.photoAssetId))}" alt="">`:'🛡️'}</div>
+            <div class="player-info"><div class="player-name">${escapeHTML(l.name||'Logo')}</div></div>
+            <button type="button" class="btn-icon" data-remove-logo="${escapeAttr(l.id)}" title="Supprimer ce logo">✕</button>
+          </li>`).join('')}</ul>` : `<p class="sheet-msg">Aucun logo importé pour l’instant.</p>`}
+      `;
+      body.querySelector('#logoClear')?.addEventListener('click', ()=>{
+        delete c.assignments[slotId];
         rerenderAndSaveCompo();
         closeSheet();
       });
-    });
-    body.querySelector('#logoNew').addEventListener('click', ()=> body.querySelector('#logoFile').click());
-    body.querySelector('#logoFile').addEventListener('change', async (e)=>{
+      body.querySelectorAll('[data-pick-logo]').forEach(row=>{
+        row.addEventListener('click', ()=>{
+          c.assignments[slotId] = row.dataset.pickLogo;
+          rerenderAndSaveCompo();
+          closeSheet();
+        });
+      });
+      body.querySelectorAll('[data-remove-logo]').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const logo = logos.find(l=>l.id===btn.dataset.removeLogo);
+          confirmDialog(`Supprimer « ${logo? logo.name||'Logo' : 'ce logo'} » ?`, 'Les emplacements où il est déjà utilisé garderont l’image ; seul le choix dans cette liste disparaît.', async ()=>{
+            await idbDelete('logos', btn.dataset.removeLogo);
+            logos = logos.filter(l=>l.id!==btn.dataset.removeLogo);
+            toast('Logo supprimé');
+            draw();
+          });
+        });
+      });
+      body.querySelector('#logoNew').addEventListener('click', ()=> body.querySelector('#logoFile').click());
+      body.querySelector('#logoFile').addEventListener('change', logoFileChange);
+    }
+    draw();
+    idbGetAll('logos').then(fresh=>{
+      fresh.sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+      logos = fresh;
+      return warmPhotoCache(fresh.map(l=>l.photoAssetId));
+    }).then(()=>{
+      if (els.sheetOverlay.classList.contains('is-open')) draw();
+    }).catch(err=> console.error('background logo refresh failed', err));
+    async function logoFileChange(e){
       const file = e.target.files[0];
       e.target.value = '';
       if (!file) return;
@@ -2225,7 +2368,7 @@ async function openLogoPickerSheet(slotId){
       }finally{
         hideBusy();
       }
-    });
+    }
   });
 }
 async function openPlayerPickerSheet(slotId){
@@ -2234,10 +2377,8 @@ async function openPlayerPickerSheet(slotId){
   const slot = (tpl.slots||[]).find(s=>s.id===slotId);
   const currentPlayerId = c.assignments[slotId];
   const usedElsewhere = new Set(Object.entries(c.assignments||{}).filter(([sid,pid])=> sid!==slotId && pid).map(([,pid])=>pid));
-  const rosterPositions = [...new Set(state.players.map(p=>p.position).filter(Boolean))];
+  const rosterPositions = [...new Set(state.players.flatMap(playerPositions))];
   let activeRole = (slot && slot.role && rosterPositions.includes(slot.role)) ? slot.role : '';
-
-  await warmPhotoCache(state.players.map(p=>p.photoAssetId));
 
   openSheet((body)=>{
     function draw(){
@@ -2280,12 +2421,24 @@ async function openPlayerPickerSheet(slotId){
         const q = (body.querySelector('#pSearch')?.value||'').trim().toLowerCase();
         body.querySelectorAll('.picker-row').forEach(row=>{
           const matchesText = row.dataset.searchText.includes(q);
-          const matchesRole = !activeRole || row.dataset.position===activeRole;
+          const matchesRole = !activeRole || row.dataset.positions.split('|').includes(activeRole);
           row.hidden = !(matchesText && matchesRole);
         });
       }
     }
     draw();
+    // Photos aren't awaited before opening (that used to block the sheet on a
+    // full-roster photo fetch) — patch placeholder icons in place once they land,
+    // instead of a full redraw that would reset the search box / role filter.
+    warmPhotoCache(state.players.map(p=>p.photoAssetId)).then(()=>{
+      body.querySelectorAll('.picker-row[data-pick-player]').forEach(row=>{
+        const photoEl = row.querySelector('.player-photo-sm');
+        if (!photoEl || photoEl.querySelector('img')) return;
+        const player = state.players.find(p=>p.id===row.dataset.pickPlayer);
+        const url = player ? photoUrl(player.photoAssetId) : '';
+        if (url) photoEl.innerHTML = `<img src="${escapeAttr(url)}" alt="">`;
+      });
+    }).catch(err=> console.error('background photo warm failed', err));
   });
 }
 async function openPhotoChoiceSheet(player, template, slotId){
@@ -2319,13 +2472,14 @@ async function openPhotoChoiceSheet(player, template, slotId){
 }
 function pickerRowHTML(p, isCurrent, isUsedElsewhere){
   const photo = photoUrl(p.photoAssetId);
-  const searchText = (String(p.name)+' '+(p.position||'')).toLowerCase();
+  const positionsText = playerPositionsText(p);
+  const searchText = (String(p.name)+' '+positionsText).toLowerCase();
   return `
-  <li class="picker-row ${isCurrent?'is-current':''}" data-pick-player="${p.id}" data-search-text="${escapeAttr(searchText)}" data-position="${escapeAttr(p.position||'')}">
+  <li class="picker-row ${isCurrent?'is-current':''}" data-pick-player="${p.id}" data-search-text="${escapeAttr(searchText)}" data-positions="${escapeAttr(playerPositions(p).join('|'))}">
     <div class="player-photo player-photo-sm">${photo? `<img src="${escapeAttr(photo)}" alt="">` : '<span>👤</span>'}</div>
     <div class="player-info">
       <div class="player-name">${escapeHTML(p.name)}${isUsedElsewhere? `<span class="picker-tag">déjà placé</span>`:''}</div>
-      <div class="player-pos">${escapeHTML(p.position||'')}</div>
+      <div class="player-pos">${escapeHTML(positionsText)}</div>
     </div>
     <div class="player-number">${p.number!=null? p.number : '–'}</div>
   </li>`;
@@ -2408,7 +2562,7 @@ function openCaptionSheet(){
       `;
       body.querySelector('#capOpponent').addEventListener('change', async (e)=>{
         c.opponent = e.target.value.trim() || null;
-        await idbUpdate('posts', c.id, {opponent:c.opponent});
+        try{ await saveCompo(false); }catch(err){ console.error('saveCompo failed', err); }
         draw();
       });
       body.querySelectorAll('[data-copy]').forEach(btn=>{
@@ -2942,7 +3096,9 @@ async function openDiagnosticSheet(){
     counts.posts = (await cacheGetAll('posts')).length;
   }catch(err){ console.error(err); }
   let outboxCount = '?';
-  try{ outboxCount = (await cacheGetAll('outbox')).length; }catch(err){}
+  let outboxItems = [];
+  try{ outboxItems = await cacheGetAll('outbox'); outboxCount = outboxItems.length; }catch(err){}
+  const stuck = outboxItems.filter(it=> (it.attempts||0) >= 5);
 
   const lines = [
     `sb initialisé : ${sb ? 'oui' : 'NON'}`,
@@ -2956,6 +3112,10 @@ async function openDiagnosticSheet(){
     `state.compos (chargées) : ${state.compos.length}`,
     `Cache local — joueurs : ${counts.players}, templates : ${counts.templates}, compos : ${counts.posts}`,
     `File d’attente hors-ligne (outbox) : ${outboxCount}`,
+    ...(stuck.length ? [
+      `⚠ ${stuck.length} modification(s) bloquée(s) après 5+ tentatives :`,
+      ...stuck.map(it=> `  - ${it.store}/${it.op} (${it.attempts} essais) : ${it.lastError||'erreur inconnue'}`),
+    ] : []),
     `URL Supabase : ${SUPABASE_URL}`,
   ];
 
@@ -2975,6 +3135,8 @@ async function openDiagnosticSheet(){
       showBusy('Reconnexion…');
       currentGroup = null;
       await ensureGroup();
+      if (currentGroup){ bindRealtime(); await loadAll(); render(); }
+      updateOnlineStatus();
       hideBusy();
       closeSheet();
       openDiagnosticSheet();
@@ -2985,7 +3147,7 @@ async function openDiagnosticSheet(){
 
 /* ---------- online / offline / session status ---------- */
 let sessionValid = true;
-function updateOnlineStatus(){
+async function updateOnlineStatus(){
   const pill = els.offlinePill;
   const text = document.getElementById('offlinePillText');
   pill.classList.remove('is-online','is-warning');
@@ -3002,9 +3164,17 @@ function updateOnlineStatus(){
       showAuthScreen();
     };
   } else {
-    pill.classList.add('is-online');
-    text.textContent = 'En ligne';
-    pill.title = 'Connecté et synchronisé';
+    let pending = 0;
+    try{ pending = (await cacheGetAll('outbox')).length; }catch(err){}
+    if (pending>0){
+      pill.classList.add('is-warning');
+      text.textContent = `Synchro… (${pending})`;
+      pill.title = `${pending} modification${pending>1?'s':''} en attente d’envoi au serveur — ça se termine automatiquement.`;
+    } else {
+      pill.classList.add('is-online');
+      text.textContent = 'En ligne';
+      pill.title = 'Connecté et synchronisé';
+    }
   }
 }
 function markSessionInvalid(){
@@ -3155,9 +3325,14 @@ async function startApp(){
   replayOutbox();
   bindRealtime();
 }
+let realtimeChannel = null;
 function bindRealtime(){
   if (!currentGroup) return;
-  sb.channel('group-'+currentGroup.id)
+  if (realtimeChannel){
+    try{ sb.removeChannel(realtimeChannel); }catch(err){ console.error(err); }
+    realtimeChannel = null;
+  }
+  realtimeChannel = sb.channel('group-'+currentGroup.id)
     .on('postgres_changes', { event:'*', schema:'public', table:'players', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
     .on('postgres_changes', { event:'*', schema:'public', table:'templates', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
     .on('postgres_changes', { event:'*', schema:'public', table:'posts', filter:'group_id=eq.'+currentGroup.id }, onRemoteChange)
@@ -3167,10 +3342,13 @@ function bindRealtime(){
 let realtimeRefreshTimer = null;
 function onRemoteChange(){
   clearTimeout(realtimeRefreshTimer);
+  // Short debounce so a burst of postgres_changes events from one logical
+  // operation (e.g. a bulk import) collapses into a single reload, without
+  // making a teammate's single edit feel slow to show up.
   realtimeRefreshTimer = setTimeout(async ()=>{
     await loadAll();
     render();
-  }, 600);
+  }, 300);
 }
 
 /* ---------- init ---------- */
